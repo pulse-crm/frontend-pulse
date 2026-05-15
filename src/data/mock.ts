@@ -93,19 +93,23 @@ export const discounts: Discount[] = [
 export interface BillingAdjustment {
   id: string;
   customer: string;
+  invoiceId: string;
+  type: "Credit" | "Debit";
   amount: number;
   reason: string;
   status: "Pending" | "Approved" | "Rejected";
   requestedBy: string;
   submittedAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export const billingAdjustments: BillingAdjustment[] = [
-  { id: "ADJ-1042", customer: "Globex Industries", amount: -480, reason: "SLA credit for outage on 2026-05-02", status: "Approved", requestedBy: "Marcus Lee", submittedAt: "2026-05-04 09:15" },
-  { id: "ADJ-1043", customer: "Initech LLC", amount: -120, reason: "Pro-rata for downgrade", status: "Approved", requestedBy: "Sarah Chen", submittedAt: "2026-05-05 14:22" },
-  { id: "ADJ-1044", customer: "Hooli", amount: -250, reason: "Goodwill credit", status: "Pending", requestedBy: "Priya Patel", submittedAt: "2026-05-12 11:01" },
-  { id: "ADJ-1045", customer: "Acme Corp", amount: -1500, reason: "Late delivery on leased line", status: "Pending", requestedBy: "Diego Alvarez", submittedAt: "2026-05-13 16:48" },
-  { id: "ADJ-1041", customer: "Umbrella Co", amount: -75, reason: "Duplicate charge", status: "Rejected", requestedBy: "Marcus Lee", submittedAt: "2026-05-01 10:30" },
+  { id: "ADJ-1042", customer: "Globex Industries", invoiceId: "INV-2026-002", type: "Credit", amount: -480, reason: "SLA credit for outage on 2026-05-02", status: "Approved", requestedBy: "Marcus Lee", submittedAt: "2026-05-04 09:15", approvedBy: "Nihala Nazar", approvedAt: "2026-05-04 14:30" },
+  { id: "ADJ-1043", customer: "Initech LLC", invoiceId: "INV-2026-003", type: "Credit", amount: -120, reason: "Pro-rata for downgrade", status: "Approved", requestedBy: "Sarah Chen", submittedAt: "2026-05-05 14:22", approvedBy: "Nihala Nazar", approvedAt: "2026-05-05 17:10" },
+  { id: "ADJ-1044", customer: "Hooli", invoiceId: "INV-2026-004", type: "Credit", amount: -250, reason: "Goodwill credit", status: "Pending", requestedBy: "Priya Patel", submittedAt: "2026-05-12 11:01" },
+  { id: "ADJ-1045", customer: "Acme Corp", invoiceId: "INV-2026-001", type: "Credit", amount: -1500, reason: "Late delivery on leased line", status: "Pending", requestedBy: "Diego Alvarez", submittedAt: "2026-05-13 16:48" },
+  { id: "ADJ-1041", customer: "Umbrella Co", invoiceId: "INV-2026-006", type: "Debit", amount: 75, reason: "Duplicate charge reversal", status: "Rejected", requestedBy: "Marcus Lee", submittedAt: "2026-05-01 10:30" },
 ];
 
 export const revenueTrend = [
@@ -139,17 +143,21 @@ export interface Deal {
   value: number;
   stage: "Lead" | "Qualified" | "Proposal" | "Negotiation" | "Won" | "Lost";
   updated: string;
+  name?: string;
+  probability?: number;
+  expectedClose?: string;
+  contactType?: "B2B" | "B2C";
 }
 
 export const deals: Deal[] = [
-  { id: "D-001", company: "Acme Corp", owner: "Sarah Chen", value: 42000, stage: "Negotiation", updated: "2h ago" },
-  { id: "D-002", company: "Globex Industries", owner: "Marcus Lee", value: 78500, stage: "Won", updated: "5h ago" },
-  { id: "D-003", company: "Initech LLC", owner: "Priya Patel", value: 12300, stage: "Proposal", updated: "1d ago" },
-  { id: "D-004", company: "Umbrella Co", owner: "Diego Alvarez", value: 31750, stage: "Qualified", updated: "1d ago" },
-  { id: "D-005", company: "Hooli", owner: "Sarah Chen", value: 9400, stage: "Lost", updated: "2d ago" },
-  { id: "D-006", company: "Stark Industries", owner: "Marcus Lee", value: 120000, stage: "Negotiation", updated: "3d ago" },
-  { id: "D-007", company: "Wayne Enterprises", owner: "Priya Patel", value: 64500, stage: "Lead", updated: "4d ago" },
-  { id: "D-008", company: "Massive Dynamic", owner: "Diego Alvarez", value: 28100, stage: "Proposal", updated: "1w ago" },
+  { id: "D-001", name: "Enterprise VoIP Migration", company: "Acme Corp", owner: "Sarah Chen", value: 42000, stage: "Negotiation", updated: "2h ago", probability: 75, expectedClose: "2026-06-15", contactType: "B2B" },
+  { id: "D-002", name: "SD-WAN Deployment", company: "Globex Industries", owner: "Marcus Lee", value: 78500, stage: "Won", updated: "5h ago", probability: 100, expectedClose: "2026-05-10", contactType: "B2B" },
+  { id: "D-003", name: "Metro Ethernet 100Mbps", company: "Initech LLC", owner: "Priya Patel", value: 12300, stage: "Proposal", updated: "1d ago", probability: 50, expectedClose: "2026-07-01", contactType: "B2B" },
+  { id: "D-004", name: "Hosted PBX 30 Seats", company: "Umbrella Co", owner: "Diego Alvarez", value: 31750, stage: "Qualified", updated: "1d ago", probability: 40, expectedClose: "2026-07-20", contactType: "B2B" },
+  { id: "D-005", name: "Fibre 1Gbps Upgrade", company: "Hooli", owner: "Sarah Chen", value: 9400, stage: "Lost", updated: "2d ago", probability: 0, expectedClose: "2026-04-30", contactType: "B2B" },
+  { id: "D-006", name: "Leased Line + Backup", company: "Stark Industries", owner: "Marcus Lee", value: 120000, stage: "Negotiation", updated: "3d ago", probability: 80, expectedClose: "2026-06-30", contactType: "B2B" },
+  { id: "D-007", name: "Broadband Bundle", company: "Wayne Enterprises", owner: "Priya Patel", value: 64500, stage: "Lead", updated: "4d ago", probability: 20, expectedClose: "2026-08-15", contactType: "B2B" },
+  { id: "D-008", name: "SIP Trunking 50 Channels", company: "Massive Dynamic", owner: "Diego Alvarez", value: 28100, stage: "Proposal", updated: "1w ago", probability: 55, expectedClose: "2026-07-05", contactType: "B2B" },
 ];
 
 export interface Subscription {
@@ -280,15 +288,20 @@ export interface Product {
   stock: number;
   status: "Active" | "Draft" | "Archived";
   description?: string;
+  features?: string[];
 }
 
 export const products: Product[] = [
-  { id: "P-001", name: "Pulse Fibre 1Gbps", category: "Broadband", price: 49.99, stock: 999, status: "Active", description: "Symmetric 1Gbps fibre with no data cap" },
-  { id: "P-002", name: "Pulse Fibre 2Gbps", category: "Broadband", price: 79.99, stock: 999, status: "Active", description: "Symmetric 2Gbps fibre, ideal for power users" },
-  { id: "P-003", name: "SIP Trunk Voice", category: "Voice", price: 12.50, stock: 250, status: "Active", description: "Cloud voice with unlimited UK calls" },
-  { id: "P-004", name: "Static IPv4 /29", category: "Add-on", price: 8.00, stock: 84, status: "Active", description: "Block of 5 usable static IPv4 addresses" },
-  { id: "P-005", name: "Dedicated Leased Line 10Gbps", category: "Enterprise", price: 1450, stock: 12, status: "Active", description: "Dedicated 10Gbps Ethernet leased line with 4-hour SLA" },
-  { id: "P-006", name: "Pulse TV Bundle", category: "Entertainment", price: 19.99, stock: 0, status: "Draft", description: "200+ channels plus on-demand library" },
+  { id: "PRD001", name: "Home Phone Unlimited", category: "Voice", price: 18.00, stock: 999, status: "Active", description: "Unlimited UK landline calls", features: ["Unlimited UK calls", "Caller ID", "Voicemail", "Call divert"] },
+  { id: "PRD002", name: "Fibre Broadband 80Mbps", category: "Broadband", price: 32.00, stock: 999, status: "Active", description: "FTTC fibre broadband", features: ["80Mbps download", "20Mbps upload", "Unlimited data", "Free router"] },
+  { id: "PRD003", name: "Home Complete Bundle", category: "Bundle", price: 45.00, stock: 999, status: "Active", description: "Phone and broadband bundle", features: ["80Mbps fibre", "Unlimited calls", "Free installation", "12-month price guarantee"] },
+  { id: "PRD004", name: "Enterprise SIP Trunking", category: "Enterprise", price: 1800.00, stock: 36, status: "Active", description: "Multi-channel SIP trunk solution", features: ["50 concurrent channels", "Number porting", "99.99% SLA", "24/7 NOC support"] },
+  { id: "PRD005", name: "Dedicated Leased Line 1Gbps", category: "Broadband", price: 1200.00, stock: 18, status: "Active", description: "Symmetric dedicated fibre connection", features: ["1Gbps symmetric", "Static IPs", "4hr fix SLA", "Managed CPE"] },
+  { id: "PRD006", name: "International Calling Add-on", category: "Add-on", price: 8.00, stock: 999, status: "Active", description: "International call bundle", features: ["100 international minutes", "60+ countries", "No setup fee"] },
+  { id: "PRD007", name: "Managed WAN", category: "Enterprise", price: 600.00, stock: 24, status: "Active", description: "Managed wide-area network service", features: ["Multi-site connectivity", "QoS prioritisation", "Real-time monitoring", "Dedicated PM"] },
+  { id: "PRD008", name: "Openreach FTTP 900Mbps", category: "Broadband", price: 55.00, stock: 999, status: "Active", description: "Full fibre to the premises", features: ["900Mbps download", "110Mbps upload", "Ultra-low latency", "Free WiFi 6 router"] },
+  { id: "PRD009", name: "Pay-As-You-Go Line Rental", category: "Voice", price: 12.00, stock: 999, status: "Active", description: "Basic fixed line rental", features: ["Standard line rental", "Caller display", "No tie-in"] },
+  { id: "PRD010", name: "Standard Broadband 17Mbps", category: "Broadband", price: 22.00, stock: 999, status: "Active", description: "Entry-level ADSL broadband", features: ["17Mbps download", "Unlimited data", "Free router"] },
 ];
 
 export interface User {

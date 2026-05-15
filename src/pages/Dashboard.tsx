@@ -5,6 +5,8 @@ import {
   Ticket as TicketIcon,
   PoundSterling,
   AlertTriangle,
+  TrendingUp,
+  TrendingDown,
   Star,
   ThumbsUp,
   MessageSquare,
@@ -13,19 +15,74 @@ import {
   Meh,
   Frown,
   User,
+  ArrowRightLeft,
+  BarChart3,
+  Clock,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card/card";
 import { Button } from "@/components/ui/button/button";
 import { Badge } from "@/components/ui/badge/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs/tabs";
 import { Progress } from "@/components/ui/progress/progress";
-import { StatCard } from "@/components/dashboard/stat-card";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { toast } from "@/components/ui/toast/toaster";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio/radio-group";
+import { Label } from "@/components/ui/label/label";
+import { SearchablePicker } from "@/components/ui/searchable-picker/searchable-picker";
 import { LineChart } from "@/components/charts/line-chart";
 import { BarChart } from "@/components/charts/bar-chart";
-import { customers, tickets, invoices, revenueTrend, ticketVolume } from "@/data/mock";
-import { formatCurrency } from "@/lib/format";
+import { TicketDashboardDialog } from "@/components/TicketDashboardDialog";
+import { RevenueDashboardDialog } from "@/components/RevenueDashboardDialog";
+import { customers, tickets, invoices, assignmentTeams } from "@/data/mock";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 
-const churnDataByPeriod = {
+type Period = "weekly" | "monthly" | "yearly";
+
+const ticketTrendByPeriod: Record<Period, { label: string; value: number }[]> = {
+  weekly: [
+    { label: "Mon", value: 187 }, { label: "Tue", value: 214 }, { label: "Wed", value: 156 },
+    { label: "Thu", value: 198 }, { label: "Fri", value: 223 }, { label: "Sat", value: 89 }, { label: "Sun", value: 62 },
+  ],
+  monthly: [
+    { label: "Wk1", value: 820 }, { label: "Wk2", value: 945 }, { label: "Wk3", value: 878 }, { label: "Wk4", value: 910 },
+  ],
+  yearly: [
+    { label: "Jan", value: 3400 }, { label: "Feb", value: 3100 }, { label: "Mar", value: 3650 },
+    { label: "Apr", value: 3200 }, { label: "May", value: 3500 }, { label: "Jun", value: 3800 },
+    { label: "Jul", value: 3300 }, { label: "Aug", value: 3150 }, { label: "Sep", value: 3600 },
+    { label: "Oct", value: 3750 }, { label: "Nov", value: 3400 }, { label: "Dec", value: 3550 },
+  ],
+};
+
+const revenueTrendByPeriod: Record<Period, { label: string; value: number }[]> = {
+  weekly: [
+    { label: "Mon", value: 720000 }, { label: "Tue", value: 810000 }, { label: "Wed", value: 690000 },
+    { label: "Thu", value: 850000 }, { label: "Fri", value: 920000 }, { label: "Sat", value: 340000 }, { label: "Sun", value: 180000 },
+  ],
+  monthly: [
+    { label: "Wk1", value: 1250000 }, { label: "Wk2", value: 1380000 }, { label: "Wk3", value: 1190000 }, { label: "Wk4", value: 1300000 },
+  ],
+  yearly: [
+    { label: "Sep", value: 4200000 }, { label: "Oct", value: 4450000 }, { label: "Nov", value: 4380000 },
+    { label: "Dec", value: 4780000 }, { label: "Jan", value: 5100000 }, { label: "Feb", value: 4920000 },
+  ],
+};
+
+const churnDataByPeriod: Record<Period, { name: string; value: number }[]> = {
   weekly: [
     { name: "Bad Debt", value: 28 },
     { name: "Moved to Competitor", value: 34 },
@@ -47,7 +104,7 @@ const churnDataByPeriod = {
     { name: "Deceased/Closed", value: 8 },
     { name: "Unknown", value: 14 },
   ],
-} as const;
+};
 
 const churnColors = [
   "hsl(0 72% 51%)",
@@ -73,6 +130,24 @@ const customerGrowth = [
   { label: "Feb", value: 13500 },
 ];
 
+const csatTrend = [
+  { label: "Sep", value: 78 },
+  { label: "Oct", value: 76 },
+  { label: "Nov", value: 79 },
+  { label: "Dec", value: 74 },
+  { label: "Jan", value: 81 },
+  { label: "Feb", value: 83 },
+];
+
+const npsTrend = [
+  { label: "Sep", value: 32 },
+  { label: "Oct", value: 29 },
+  { label: "Nov", value: 34 },
+  { label: "Dec", value: 28 },
+  { label: "Jan", value: 38 },
+  { label: "Feb", value: 41 },
+];
+
 const sentimentData = [
   { name: "Positive", value: 62, color: "hsl(142 72% 40%)" },
   { name: "Neutral", value: 24, color: "hsl(45 85% 50%)" },
@@ -96,9 +171,15 @@ const surveyChannelData = [
   { channel: "Chat Post-Session", responses: 8900, csat: 88 },
 ];
 
+const periods: Period[] = ["weekly", "monthly", "yearly"];
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [churnPeriod, setChurnPeriod] = React.useState<keyof typeof churnDataByPeriod>("monthly");
+  const [ticketPeriod, setTicketPeriod] = React.useState<Period>("weekly");
+  const [revenuePeriod, setRevenuePeriod] = React.useState<Period>("yearly");
+  const [churnPeriod, setChurnPeriod] = React.useState<Period>("monthly");
+  const [ticketDashOpen, setTicketDashOpen] = React.useState(false);
+  const [revenueDashOpen, setRevenueDashOpen] = React.useState(false);
 
   const activeCustomers = customers.filter((c) => c.status === "Active").length;
   const openTickets = tickets.filter((t) => t.status === "Open" || t.status === "Escalated").length;
@@ -106,7 +187,7 @@ export default function Dashboard() {
   const revenueMTD = invoices.filter((i) => i.issueDate.startsWith("2026-05")).reduce((s, i) => s + i.amount, 0);
 
   return (
-    <div className="page-stack">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
@@ -114,52 +195,88 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Active Subscribers"
-          value={activeCustomers.toString()}
-          delta={2.4}
-          icon={Users}
-          iconTone="primary"
-          onClick={() => navigate("/")}
-        />
-        <StatCard
-          label="Open Tickets"
-          value={openTickets.toString()}
-          deltaLabel="+5 today"
-          icon={TicketIcon}
-          iconTone="warning"
-          onClick={() => navigate("/tickets")}
-        />
-        <StatCard
-          label="Revenue MTD"
-          value={formatCurrency(revenueMTD, 0)}
-          deltaLabel="On track"
-          icon={PoundSterling}
-          iconTone="success"
-          onClick={() => navigate("/billing")}
-        />
-        <StatCard
-          label="Overdue Invoices"
-          value={overdueInvoices.length.toString()}
-          deltaLabel={`${formatCurrency(overdueInvoices.reduce((s, i) => s + i.amount, 0))} outstanding`}
-          icon={AlertTriangle}
-          iconTone="danger"
-          onClick={() => navigate("/billing")}
-        />
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/customers")}>
+          <CardContent className="p-5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Subscribers</p>
+                <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
+                  <Users className="h-3 w-3 text-primary" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold mt-1">{activeCustomers}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-success">
+                <TrendingUp className="h-3 w-3" />+2.4% vs last month
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTicketDashOpen(true)}>
+          <CardContent className="p-5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Open Tickets</p>
+                <div className="h-5 w-5 rounded bg-warning/10 flex items-center justify-center">
+                  <TicketIcon className="h-3 w-3 text-warning" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold mt-1">{openTickets}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                <TrendingUp className="h-3 w-3" />+5 today
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setRevenueDashOpen(true)}>
+          <CardContent className="p-5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Revenue MTD</p>
+                <div className="h-5 w-5 rounded bg-success/10 flex items-center justify-center">
+                  <PoundSterling className="h-3 w-3 text-success" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(revenueMTD, 0)}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-success">
+                <TrendingUp className="h-3 w-3" />On track
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/billing")}>
+          <CardContent className="p-5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Overdue Invoices</p>
+                <div className="h-5 w-5 rounded bg-destructive/10 flex items-center justify-center">
+                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold mt-1">{overdueInvoices.length}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                <AlertTriangle className="h-3 w-3" />
+                {formatCurrency(overdueInvoices.reduce((s, i) => s + i.amount, 0))} outstanding
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="customer-base" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="customer-base">
-            <Users className="h-3.5 w-3.5 mr-1.5" />Customer Base
+          <TabsTrigger value="customer-base" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />Customer Base
           </TabsTrigger>
-          <TabsTrigger value="agent-workload">
-            <User className="h-3.5 w-3.5 mr-1.5" />Agent Workload
+          <TabsTrigger value="agent-workload" className="gap-1.5">
+            <User className="h-3.5 w-3.5" />Agent Workload
           </TabsTrigger>
-          <TabsTrigger value="surveys-csat">
-            <Star className="h-3.5 w-3.5 mr-1.5" />Surveys & CSAT
+          <TabsTrigger value="surveys-csat" className="gap-1.5">
+            <Star className="h-3.5 w-3.5" />Surveys & CSAT
           </TabsTrigger>
         </TabsList>
 
@@ -168,23 +285,48 @@ export default function Dashboard() {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-medium">Ticket Volume</CardTitle>
-                <Badge variant="outline" className="text-[10px]">This Week</Badge>
+                <div className="flex gap-1">
+                  {periods.map((p) => (
+                    <Button
+                      key={p}
+                      size="sm"
+                      variant={ticketPeriod === p ? "default" : "outline"}
+                      className="h-6 text-[10px] px-2 capitalize"
+                      onClick={() => setTicketPeriod(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
-                <BarChart data={ticketVolume.map((t) => ({ label: t.label, value: t.count }))} height={180} />
+                <BarChart data={ticketTrendByPeriod[ticketPeriod]} height={180} />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-medium">Revenue Trend</CardTitle>
-                <Badge variant="outline" className="text-[10px]">Last 8 mo</Badge>
+                <div className="flex gap-1">
+                  {periods.map((p) => (
+                    <Button
+                      key={p}
+                      size="sm"
+                      variant={revenuePeriod === p ? "default" : "outline"}
+                      className="h-6 text-[10px] px-2 capitalize"
+                      onClick={() => setRevenuePeriod(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
                 <LineChart
-                  data={revenueTrend.map((r) => ({ label: r.label, value: r.revenue / 1000 }))}
+                  data={revenueTrendByPeriod[revenuePeriod]}
                   color="hsl(142 72% 40%)"
                   height={180}
+                  formatValue={(v) => formatCurrencyCompact(v)}
                 />
               </CardContent>
             </Card>
@@ -193,7 +335,7 @@ export default function Dashboard() {
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-medium">Churn Breakdown</CardTitle>
                 <div className="flex gap-1">
-                  {(["weekly", "monthly", "yearly"] as const).map((p) => (
+                  {periods.map((p) => (
                     <Button
                       key={p}
                       size="sm"
@@ -231,7 +373,11 @@ export default function Dashboard() {
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Net Subscriber Growth</CardTitle></CardHeader>
               <CardContent>
-                <BarChart data={customerGrowth} height={180} />
+                <BarChart
+                  data={customerGrowth}
+                  height={180}
+                  formatValue={(v) => `${(v / 1000).toFixed(0)}k`}
+                />
               </CardContent>
             </Card>
             <Card>
@@ -254,42 +400,101 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="agent-workload" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Agent Capacity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Sarah Chen", role: "Senior Agent", load: 87, tickets: 14 },
-                { name: "Marcus Lee", role: "Agent", load: 65, tickets: 9 },
-                { name: "Priya Patel", role: "Agent", load: 42, tickets: 6 },
-                { name: "Diego Alvarez", role: "Agent", load: 78, tickets: 12 },
-                { name: "Nina Sokolova", role: "Admin", load: 22, tickets: 3 },
-              ].map((agent) => (
-                <div key={agent.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="font-medium">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground">{agent.role}</p>
-                    </div>
-                    <span className="text-muted-foreground text-xs">{agent.tickets} tickets · {agent.load}%</span>
-                  </div>
-                  <Progress
-                    value={agent.load}
-                    tone={agent.load > 80 ? "destructive" : agent.load > 60 ? "warning" : "primary"}
-                  />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <AgentWorkloadSection />
         </TabsContent>
 
         <TabsContent value="surveys-csat" className="space-y-4">
+          {/* CSAT & NPS KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard label="CSAT Score" value="83%" delta={2} deltaLabel="+2pts vs last month" icon={ThumbsUp} iconTone="success" size="lg" />
-            <StatCard label="NPS" value="+41" delta={3} deltaLabel="+3pts vs last month" icon={Star} iconTone="primary" size="lg" />
-            <StatCard label="Survey Responses (MTD)" value="95.9K" delta={18} deltaLabel="18% response rate" icon={MessageSquare} iconTone="primary" size="lg" />
-            <StatCard label="First Contact Resolution" value="72%" delta={-1} deltaLabel="-1pt vs last month" icon={CheckCircle2} iconTone="warning" size="lg" />
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CSAT Score</p>
+                    <p className="text-3xl font-bold mt-1">83%</p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-success">
+                      <TrendingUp className="h-3 w-3" />+2pts vs last month
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                    <ThumbsUp className="h-5 w-5 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">NPS</p>
+                    <p className="text-3xl font-bold mt-1">+41</p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-success">
+                      <TrendingUp className="h-3 w-3" />+3pts vs last month
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Star className="h-5 w-5 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey Responses (MTD)</p>
+                    <p className="text-3xl font-bold mt-1">95.9K</p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-success">
+                      <TrendingUp className="h-3 w-3" />18% response rate
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">First Contact Resolution</p>
+                    <p className="text-3xl font-bold mt-1">72%</p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                      <TrendingDown className="h-3 w-3" />-1pt vs last month
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-warning" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">CSAT Trend (6 months)</CardTitle></CardHeader>
+              <CardContent>
+                <LineChart
+                  data={csatTrend}
+                  color="hsl(215 90% 52%)"
+                  height={200}
+                  formatValue={(v) => `${v}%`}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">NPS Trend (6 months)</CardTitle></CardHeader>
+              <CardContent>
+                <LineChart
+                  data={npsTrend}
+                  color="hsl(142 72% 40%)"
+                  height={200}
+                  formatValue={(v) => `+${v}`}
+                />
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -324,7 +529,7 @@ export default function Dashboard() {
                   {surveyChannelData.map((ch) => (
                     <div key={ch.channel} className="flex items-center justify-between text-sm gap-2">
                       <span className="font-medium truncate flex-1">{ch.channel}</span>
-                      <span className="text-muted-foreground text-xs">{ch.responses.toLocaleString()}</span>
+                      <span className="text-muted-foreground text-xs">{ch.responses.toLocaleString()} responses</span>
                       <Badge
                         tone={ch.csat >= 85 ? "success" : ch.csat >= 80 ? "info" : "warning"}
                         className="min-w-[48px] justify-center text-xs"
@@ -358,6 +563,345 @@ export default function Dashboard() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <TicketDashboardDialog open={ticketDashOpen} onOpenChange={setTicketDashOpen} />
+      <RevenueDashboardDialog open={revenueDashOpen} onOpenChange={setRevenueDashOpen} />
     </div>
+  );
+}
+
+type Availability = "Available" | "Busy" | "Offline";
+
+interface AgentRow {
+  name: string;
+  availability: Availability;
+  currentLoad: number;
+  maxLoad: number;
+  skills: string[];
+}
+
+const initialAgents: AgentRow[] = [
+  { name: "Sarah Chen", availability: "Available", currentLoad: 14, maxLoad: 16, skills: ["Billing", "Account", "Escalations"] },
+  { name: "Marcus Lee", availability: "Busy", currentLoad: 9, maxLoad: 14, skills: ["Network", "Performance", "Field"] },
+  { name: "Priya Patel", availability: "Available", currentLoad: 6, maxLoad: 14, skills: ["Provisioning", "Onboarding"] },
+  { name: "Diego Alvarez", availability: "Busy", currentLoad: 12, maxLoad: 15, skills: ["Network", "Performance"] },
+  { name: "Nina Sokolova", availability: "Available", currentLoad: 3, maxLoad: 12, skills: ["Admin", "Reporting"] },
+  { name: "Aiden Park", availability: "Offline", currentLoad: 0, maxLoad: 14, skills: ["Billing", "SMB"] },
+];
+
+function AgentWorkloadSection() {
+  const [agents, setAgents] = React.useState<AgentRow[]>(initialAgents);
+  const [reassignFrom, setReassignFrom] = React.useState("");
+  const [reassignTo, setReassignTo] = React.useState("");
+
+  const [statusDialog, setStatusDialog] = React.useState<{ agent: string; newStatus: Availability } | null>(null);
+  const [reassignMode, setReassignMode] = React.useState<"agent" | "team">("agent");
+  const [targetAgent, setTargetAgent] = React.useState("");
+  const [targetTeam, setTargetTeam] = React.useState("");
+
+  const agentStats = agents.map((a) => {
+    const agentTickets = tickets.filter((t) => t.assignee === a.name);
+    const resolvedTickets = agentTickets.filter((t) => t.status === "Resolved" || t.status === "Closed").length;
+    const openTickets = agentTickets.filter((t) => t.status === "Open" || t.status === "Escalated" || t.status === "In Progress").length;
+    const loadPct = a.maxLoad > 0 ? Math.round((a.currentLoad / a.maxLoad) * 100) : 0;
+    const slaCompliance = 70 + ((a.name.length * 7) % 30); // stable pseudo-random per name
+    const avgHours = 2 + ((a.name.length * 3) % 18);
+    return { ...a, openTickets, resolvedTickets, loadPct, slaCompliance, avgHours };
+  });
+
+  const applyStatusChange = (name: string, newStatus: Availability) => {
+    setAgents((prev) => prev.map((a) => (a.name === name ? { ...a, availability: newStatus } : a)));
+    toast({ title: "Status Updated", description: `${name} is now ${newStatus}.` });
+  };
+
+  const handleStatusChange = (name: string, newStatus: Availability) => {
+    const agent = agentStats.find((a) => a.name === name);
+    const currentStatus = agent?.availability;
+
+    if (newStatus === "Offline" && currentStatus !== "Offline") {
+      setStatusDialog({ agent: name, newStatus });
+      setReassignMode("agent");
+      setTargetAgent("");
+      setTargetTeam("");
+      return;
+    }
+
+    applyStatusChange(name, newStatus);
+  };
+
+  const handleConfirmReassignment = () => {
+    if (!statusDialog) return;
+    const { agent, newStatus } = statusDialog;
+    const agentData = agentStats.find((a) => a.name === agent);
+    const openCount = agentData?.openTickets || 0;
+
+    if (reassignMode === "agent") {
+      if (!targetAgent) return;
+      toast({
+        title: "Tickets Reassigned & Status Updated",
+        description: `${openCount} open ticket(s) moved from ${agent} to ${targetAgent}. ${agent} is now ${newStatus}.`,
+      });
+    } else {
+      if (!targetTeam) return;
+      const team = assignmentTeams.find((t) => t.name === targetTeam);
+      const memberCount = team?.members.filter((m) => m !== agent).length || 1;
+      const perMember = Math.floor(openCount / memberCount);
+      const remainder = openCount % memberCount;
+      toast({
+        title: "Tickets Distributed & Status Updated",
+        description: `${openCount} ticket(s) evenly distributed across ${memberCount} members of ${targetTeam} (~${perMember}${remainder > 0 ? `-${perMember + 1}` : ""} each). ${agent} is now ${newStatus}.`,
+      });
+    }
+
+    applyStatusChange(agent, newStatus);
+    setStatusDialog(null);
+  };
+
+  const availableAgentsForReassign = agents.filter(
+    (a) => a.name !== statusDialog?.agent && a.availability !== "Offline"
+  );
+
+  const handleReassign = () => {
+    if (!reassignFrom || !reassignTo || reassignFrom === reassignTo) return;
+    toast({ title: "Tickets reassigned", description: `1 ticket moved from ${reassignFrom} to ${reassignTo}.` });
+    setReassignFrom("");
+    setReassignTo("");
+  };
+
+  return (
+    <>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          Agent Workload
+          <Badge variant="outline" className="text-[10px] ml-1">Supervisor View</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {agentStats.map((agent) => (
+            <div key={agent.name} className="p-3 rounded-lg border bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">{agent.name}</span>
+                <StatusBadge status={agent.availability} />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Change Status</label>
+                <Select
+                  value={agent.availability}
+                  onValueChange={(v) => handleStatusChange(agent.name, v as Availability)}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Busy">Busy</SelectItem>
+                    <SelectItem value="Offline">Offline</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                  <span>Load</span>
+                  <span className="font-mono">{agent.currentLoad}/{agent.maxLoad}</span>
+                </div>
+                <Progress
+                  value={agent.loadPct}
+                  tone={agent.loadPct >= 90 ? "destructive" : agent.loadPct >= 70 ? "warning" : "success"}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <BarChart3 className="h-2.5 w-2.5" /> Open:{" "}
+                  <span className="font-medium text-foreground">{agent.openTickets}</span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <CheckCircle2 className="h-2.5 w-2.5" /> Resolved:{" "}
+                  <span className="font-medium text-foreground">{agent.resolvedTickets}</span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-2.5 w-2.5" /> SLA:{" "}
+                  <span
+                    className={`font-medium ${
+                      agent.slaCompliance >= 90
+                        ? "text-success"
+                        : agent.slaCompliance >= 70
+                          ? "text-warning"
+                          : "text-destructive"
+                    }`}
+                  >
+                    {agent.slaCompliance}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-2.5 w-2.5" /> Avg:{" "}
+                  <span className="font-medium text-foreground">{agent.avgHours}h</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1">
+                {agent.skills.slice(0, 3).map((skill) => (
+                  <Badge key={skill} variant="outline" className="text-[8px] px-1 py-0">
+                    {skill}
+                  </Badge>
+                ))}
+                {agent.skills.length > 3 && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0">
+                    +{agent.skills.length - 3}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-3 rounded-lg border bg-accent/30 space-y-3">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-xs font-medium">Reassign Ticket</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-1 block">From</label>
+              <SearchablePicker
+                options={agents.map((a) => ({
+                  value: a.name,
+                  label: a.name,
+                  description: `${a.availability} · ${a.currentLoad}/${a.maxLoad}`,
+                }))}
+                value={reassignFrom}
+                onValueChange={setReassignFrom}
+                placeholder="Search source agent..."
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-1 block">To</label>
+              <SearchablePicker
+                options={agents
+                  .filter((a) => a.name !== reassignFrom)
+                  .map((a) => ({
+                    value: a.name,
+                    label: a.name,
+                    description: `${a.availability} · ${a.currentLoad}/${a.maxLoad}`,
+                  }))}
+                value={reassignTo}
+                onValueChange={setReassignTo}
+                placeholder="Search target agent..."
+              />
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="h-7 text-xs w-full"
+            disabled={!reassignFrom || !reassignTo || reassignFrom === reassignTo}
+            onClick={handleReassign}
+          >
+            Move
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Dialog open={!!statusDialog} onOpenChange={(open) => !open && setStatusDialog(null)}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            Reassign Open Tickets
+          </DialogTitle>
+        </DialogHeader>
+        {statusDialog && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{statusDialog.agent}</span> has{" "}
+              <span className="font-semibold text-foreground">
+                {agentStats.find((a) => a.name === statusDialog.agent)?.openTickets || 0}
+              </span>{" "}
+              open ticket(s). How would you like to reassign them before setting status to{" "}
+              <Badge variant="outline" className="text-[10px]">{statusDialog.newStatus}</Badge>?
+            </p>
+
+            <RadioGroup value={reassignMode} onValueChange={(v) => setReassignMode(v as "agent" | "team")}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="agent" id="mode-agent" />
+                <Label htmlFor="mode-agent" className="text-sm">Transfer to a specific agent</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="team" id="mode-team" />
+                <Label htmlFor="mode-team" className="text-sm">Distribute across a team</Label>
+              </div>
+            </RadioGroup>
+
+            {reassignMode === "agent" ? (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Target Agent</label>
+                <SearchablePicker
+                  options={availableAgentsForReassign.map((a) => ({
+                    value: a.name,
+                    label: a.name,
+                    description: `${a.availability} · Load: ${a.currentLoad}/${a.maxLoad}`,
+                  }))}
+                  value={targetAgent}
+                  onValueChange={setTargetAgent}
+                  placeholder="Search agents..."
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Target Team</label>
+                <SearchablePicker
+                  options={assignmentTeams.map((t) => {
+                    const eligibleMembers = t.members.filter((m) => m !== statusDialog.agent);
+                    return {
+                      value: t.name,
+                      label: t.name,
+                      description: `${eligibleMembers.length} member${eligibleMembers.length !== 1 ? "s" : ""}`,
+                    };
+                  })}
+                  value={targetTeam}
+                  onValueChange={setTargetTeam}
+                  placeholder="Search teams..."
+                />
+                {targetTeam && (
+                  <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+                    <p className="font-medium text-foreground mb-1">Distribution preview:</p>
+                    {(() => {
+                      const team = assignmentTeams.find((t) => t.name === targetTeam);
+                      const members = team?.members.filter((m) => m !== statusDialog.agent) || [];
+                      const openCount = agentStats.find((a) => a.name === statusDialog.agent)?.openTickets || 0;
+                      const perMember = members.length > 0 ? Math.floor(openCount / members.length) : 0;
+                      const remainder = members.length > 0 ? openCount % members.length : 0;
+                      return members.map((m, i) => (
+                        <div key={m} className="flex items-center justify-between py-0.5">
+                          <span>{m}</span>
+                          <Badge variant="outline" className="text-[10px]">
+                            +{perMember + (i < remainder ? 1 : 0)} ticket(s)
+                          </Badge>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setStatusDialog(null)}>Cancel</Button>
+          <Button
+            onClick={handleConfirmReassignment}
+            disabled={reassignMode === "agent" ? !targetAgent : !targetTeam}
+          >
+            Reassign & Update Status
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -4,6 +4,7 @@ interface LineChartProps {
   className?: string;
   color?: string;
   showValues?: boolean;
+  formatValue?: (v: number) => string;
 }
 
 export function LineChart({
@@ -12,6 +13,7 @@ export function LineChart({
   className,
   color = "hsl(215 90% 52%)",
   showValues = true,
+  formatValue,
 }: LineChartProps) {
   if (!data || data.length === 0) return null;
   const width = 600;
@@ -72,7 +74,7 @@ export function LineChart({
               fontSize="10"
               fill="hsl(215 14% 46%)"
             >
-              {g.value}
+              {formatValue ? formatValue(g.value) : g.value}
             </text>
           )}
         </g>

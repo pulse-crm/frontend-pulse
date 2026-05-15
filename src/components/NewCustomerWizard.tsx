@@ -1,34 +1,5 @@
 import * as React from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog/dialog";
-import { Button } from "@/components/ui/button/button";
-import { Input } from "@/components/ui/input/input";
-import { Label } from "@/components/ui/label/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio/radio-group";
-import { Checkbox } from "@/components/ui/checkbox/checkbox";
-import { Card, CardContent } from "@/components/ui/card/card";
-import { Separator } from "@/components/ui/separator/separator";
-import { Badge } from "@/components/ui/badge/badge";
-import { Spinner } from "@/components/ui/spinner/spinner";
-import { toast } from "@/components/ui/toast/toaster";
-import {
-  formatCurrency,
-  getEmailError,
-  getPhoneError,
-  getPostcodeError,
-} from "@/lib/format";
-import {
   User,
   MapPin,
   Package,
@@ -37,13 +8,39 @@ import {
   CheckCircle2,
   ArrowLeft,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/cn";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog/dialog";
+import { Button } from "@/components/ui/button/button";
+import { Input } from "@/components/ui/input/input";
+import { Label } from "@/components/ui/label/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio/radio-group";
+import { Checkbox } from "@/components/ui/checkbox/checkbox";
+import { Card, CardContent } from "@/components/ui/card/card";
+import { Separator } from "@/components/ui/separator/separator";
+import { Badge } from "@/components/ui/badge/badge";
+import { toast } from "@/components/ui/toast/toaster";
 import { products } from "@/data/mock";
+import {
+  formatCurrency,
+  getEmailError,
+  getPhoneError,
+  getPostcodeError,
+} from "@/lib/format";
+import { cn } from "@/lib/cn";
 
 interface NewCustomerWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Optional ref to the trigger button — when provided the wizard opens anchored directly below it instead of centered on screen. */
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 const STEPS = [
@@ -56,11 +53,15 @@ const STEPS = [
 
 const COMMITMENTS = ["Month-to-Month", "12 Months", "24 Months", "36 Months"];
 
-export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps) {
+/** Consistent field label class: shifts the label slightly above the input so labels and textboxes always have a clear top/bottom rhythm in the form. */
+const fieldLabelCls = "text-xs block mb-1.5";
+
+export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomerWizardProps) {
   const [step, setStep] = React.useState(0);
   const [processing, setProcessing] = React.useState(false);
   const [orderComplete, setOrderComplete] = React.useState(false);
 
+  // Step 0: Customer
   const [customerType, setCustomerType] = React.useState<"B2C" | "B2B">("B2C");
   const [title, setTitle] = React.useState("");
   const [firstName, setFirstName] = React.useState("");
@@ -74,9 +75,13 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
   const [county, setCounty] = React.useState("");
   const [postcode, setPostcode] = React.useState("");
 
+  // Step 1
   const [selectedProducts, setSelectedProducts] = React.useState<string[]>([]);
+
+  // Step 2
   const [commitment, setCommitment] = React.useState("24 Months");
 
+  // Step 3
   const [paymentMethod, setPaymentMethod] = React.useState<"card" | "directdebit">("directdebit");
   const [cardNumber, setCardNumber] = React.useState("");
   const [cardExpiry, setCardExpiry] = React.useState("");
@@ -138,8 +143,8 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
         return !!commitment;
       case 3:
         if (paymentMethod === "card")
-          return !!(cardNumber.trim() && cardExpiry.trim() && cardCvc.trim() && cardName.trim());
-        return !!(sortCode.trim() && accountNumber.trim() && accountName.trim());
+          return Boolean(cardNumber.trim() && cardExpiry.trim() && cardCvc.trim() && cardName.trim());
+        return Boolean(sortCode.trim() && accountNumber.trim() && accountName.trim());
       default:
         return true;
     }
@@ -154,27 +159,35 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
     setTimeout(() => {
       setProcessing(false);
       setOrderComplete(true);
-      toast({ title: "Customer created", variant: "success", description: "Order submitted successfully" });
+      toast({
+        title: "Order submitted",
+        description: "Customer created and order submitted successfully.",
+        variant: "success",
+      });
     }, 2200);
   };
 
-  const toggleProduct = (id: string) => {
+  const toggleProduct = (id: string) =>
     setSelectedProducts((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
-  };
 
   const displayName = customerType === "B2B" ? companyName : `${firstName} ${lastName}`.trim();
+  const orderRef = React.useMemo(
+    () => `ORD-${Math.floor(7100 + Math.random() * 900)}`,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderComplete]
+  );
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleClose} align="top" anchorRef={anchorRef} anchorOffset={-5}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Customer</DialogTitle>
         </DialogHeader>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-1 mb-4">
+        <div className="flex items-center gap-1 mb-4 pb-[15px]">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
             const isActive = i === step;
@@ -199,44 +212,54 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
 
         <Separator />
 
+        {/* Step 0: Customer Details */}
         {step === 0 && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             <div>
               <Label className="text-xs font-medium mb-2 block">Customer Type</Label>
               <RadioGroup
                 value={customerType}
                 onValueChange={(v) => setCustomerType(v as "B2C" | "B2B")}
-                className="flex gap-4"
+                className="grid-flow-col w-fit auto-cols-max gap-4"
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="B2C" id="b2c" />
-                  <Label htmlFor="b2c" className="text-sm cursor-pointer">Residential</Label>
+                  <Label htmlFor="b2c" className="text-sm cursor-pointer">
+                    Residential
+                  </Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="B2B" id="b2b" />
-                  <Label htmlFor="b2b" className="text-sm cursor-pointer">Business</Label>
+                  <Label htmlFor="b2b" className="text-sm cursor-pointer">
+                    Business
+                  </Label>
                 </div>
               </RadioGroup>
             </div>
 
             {customerType === "B2B" && (
               <div>
-                <Label htmlFor="company" className="text-xs">Company Name *</Label>
+                <Label htmlFor="company" className={fieldLabelCls}>
+                  Company Name *
+                </Label>
                 <Input
                   id="company"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Company name"
-                  className="mt-1"
                 />
               </div>
             )}
 
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <Label className="text-xs">Title</Label>
+                <Label htmlFor="title" className={fieldLabelCls}>
+                  Title
+                </Label>
                 <Select value={title} onValueChange={setTitle}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="--" /></SelectTrigger>
+                  <SelectTrigger id="title">
+                    <SelectValue placeholder="--" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Mr">Mr</SelectItem>
                     <SelectItem value="Mrs">Mrs</SelectItem>
@@ -247,50 +270,54 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
                 </Select>
               </div>
               <div className="col-span-1">
-                <Label htmlFor="firstName" className="text-xs">First Name *</Label>
+                <Label htmlFor="firstName" className={fieldLabelCls}>
+                  First Name *
+                </Label>
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="First name"
-                  className="mt-1"
                 />
               </div>
               <div className="col-span-2">
-                <Label htmlFor="lastName" className="text-xs">Last Name *</Label>
+                <Label htmlFor="lastName" className={fieldLabelCls}>
+                  Last Name *
+                </Label>
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Last name"
-                  className="mt-1"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="email" className="text-xs">Email *</Label>
+                <Label htmlFor="email" className={fieldLabelCls}>
+                  Email *
+                </Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="mt-1"
                 />
                 {email && getEmailError(email) && (
                   <p className="text-[10px] text-destructive mt-1">{getEmailError(email)}</p>
                 )}
               </div>
               <div>
-                <Label htmlFor="phone" className="text-xs">Phone *</Label>
+                <Label htmlFor="phone" className={fieldLabelCls}>
+                  Phone *
+                </Label>
                 <Input
                   id="phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+44 1234 567890"
-                  className="mt-1"
                 />
                 {phone && getPhoneError(phone) && (
                   <p className="text-[10px] text-destructive mt-1">{getPhoneError(phone)}</p>
@@ -305,54 +332,59 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
             </div>
 
             <div>
-              <Label htmlFor="addr1" className="text-xs">Address Line 1 *</Label>
+              <Label htmlFor="addr1" className={fieldLabelCls}>
+                Address Line 1 *
+              </Label>
               <Input
                 id="addr1"
                 value={addressLine1}
                 onChange={(e) => setAddressLine1(e.target.value)}
                 placeholder="House number and street"
-                className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="addr2" className="text-xs">Address Line 2</Label>
+              <Label htmlFor="addr2" className={fieldLabelCls}>
+                Address Line 2
+              </Label>
               <Input
                 id="addr2"
                 value={addressLine2}
                 onChange={(e) => setAddressLine2(e.target.value)}
                 placeholder="Flat, suite, floor (optional)"
-                className="mt-1"
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <Label htmlFor="city" className="text-xs">City / Town *</Label>
+                <Label htmlFor="city" className={fieldLabelCls}>
+                  City / Town *
+                </Label>
                 <Input
                   id="city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="City"
-                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="county" className="text-xs">County</Label>
+                <Label htmlFor="county" className={fieldLabelCls}>
+                  County
+                </Label>
                 <Input
                   id="county"
                   value={county}
                   onChange={(e) => setCounty(e.target.value)}
                   placeholder="County"
-                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="postcode" className="text-xs">Postcode *</Label>
+                <Label htmlFor="postcode" className={fieldLabelCls}>
+                  Postcode *
+                </Label>
                 <Input
                   id="postcode"
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value)}
                   placeholder="SW1A 1AA"
-                  className="mt-1"
                 />
                 {postcode && getPostcodeError(postcode) && (
                   <p className="text-[10px] text-destructive mt-1">{getPostcodeError(postcode)}</p>
@@ -362,8 +394,9 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
           </div>
         )}
 
+        {/* Step 1: Package Selection */}
         {step === 1 && (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-3">
             <p className="text-sm text-muted-foreground">Select one or more products for this customer.</p>
             <div className="grid grid-cols-1 gap-2">
               {products.map((p) => {
@@ -373,7 +406,7 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
                     key={p.id}
                     className={cn(
                       "cursor-pointer transition-all",
-                      isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:border-primary/40"
+                      isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:border-primary/30"
                     )}
                     onClick={() => toggleProduct(p.id)}
                   >
@@ -382,11 +415,11 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm">{p.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">{p.category}</Badge>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {p.category}
+                          </Badge>
                         </div>
-                        {p.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
                       </div>
                       <span className="font-semibold text-sm shrink-0">
                         {formatCurrency(p.price)}/mo
@@ -399,28 +432,32 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
           </div>
         )}
 
+        {/* Step 2: Pricing & Terms */}
         {step === 2 && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             <div>
               <Label className="text-xs font-medium mb-2 block">Contract Length</Label>
-              <RadioGroup value={commitment} onValueChange={setCommitment} className="grid grid-cols-2 gap-2">
+              <RadioGroup value={commitment} onValueChange={setCommitment} className="grid-cols-1 sm:grid-cols-2 gap-2">
                 {COMMITMENTS.map((c) => (
-                  <label
+                  <div
                     key={c}
-                    htmlFor={c}
                     className={cn(
                       "flex items-center gap-2 border rounded-md p-3 cursor-pointer transition-colors",
-                      commitment === c ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+                      commitment === c
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30"
                     )}
                   >
                     <RadioGroupItem value={c} id={c} />
-                    <span className="text-sm flex-1">{c}</span>
+                    <Label htmlFor={c} className="text-sm cursor-pointer flex-1">
+                      {c}
+                    </Label>
                     {c !== "Month-to-Month" && (
                       <Badge variant="outline" className="text-[10px]">
                         {c === "36 Months" ? "Best value" : c === "24 Months" ? "Popular" : "Flexible"}
                       </Badge>
                     )}
-                  </label>
+                  </div>
                 ))}
               </RadioGroup>
             </div>
@@ -448,7 +485,7 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
                 {commitment !== "Month-to-Month" && (
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Total Contract Value</span>
-                    <span>{formatCurrency(monthlyTotal * parseInt(commitment, 10))}</span>
+                    <span>{formatCurrency(monthlyTotal * parseInt(commitment))}</span>
                   </div>
                 )}
               </div>
@@ -456,22 +493,27 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
           </div>
         )}
 
+        {/* Step 3: Payment */}
         {step === 3 && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             <div>
               <Label className="text-xs font-medium mb-2 block">Payment Method</Label>
               <RadioGroup
                 value={paymentMethod}
                 onValueChange={(v) => setPaymentMethod(v as "card" | "directdebit")}
-                className="flex gap-4"
+                className="grid-flow-col w-fit auto-cols-max gap-4"
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="directdebit" id="dd" />
-                  <Label htmlFor="dd" className="text-sm cursor-pointer">Direct Debit</Label>
+                  <Label htmlFor="dd" className="text-sm cursor-pointer">
+                    Direct Debit
+                  </Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="card" id="cc" />
-                  <Label htmlFor="cc" className="text-sm cursor-pointer">Credit / Debit Card</Label>
+                  <Label htmlFor="cc" className="text-sm cursor-pointer">
+                    Credit / Debit Card
+                  </Label>
                 </div>
               </RadioGroup>
             </div>
@@ -479,38 +521,41 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
             <Separator />
 
             {paymentMethod === "directdebit" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="accName" className="text-xs">Account Holder Name *</Label>
+                  <Label htmlFor="accName" className={fieldLabelCls}>
+                    Account Holder Name *
+                  </Label>
                   <Input
                     id="accName"
                     value={accountName}
                     onChange={(e) => setAccountName(e.target.value)}
                     placeholder="Name as shown on account"
-                    className="mt-1"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="sortCode" className="text-xs">Sort Code *</Label>
+                    <Label htmlFor="sortCode" className={fieldLabelCls}>
+                      Sort Code *
+                    </Label>
                     <Input
                       id="sortCode"
                       value={sortCode}
                       onChange={(e) => setSortCode(e.target.value)}
                       placeholder="00-00-00"
                       maxLength={8}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="accNum" className="text-xs">Account Number *</Label>
+                    <Label htmlFor="accNum" className={fieldLabelCls}>
+                      Account Number *
+                    </Label>
                     <Input
                       id="accNum"
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
                       placeholder="12345678"
                       maxLength={8}
-                      className="mt-1"
                     />
                   </div>
                 </div>
@@ -521,49 +566,53 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
             )}
 
             {paymentMethod === "card" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="cardName" className="text-xs">Name on Card *</Label>
+                  <Label htmlFor="cardName" className={fieldLabelCls}>
+                    Name on Card *
+                  </Label>
                   <Input
                     id="cardName"
                     value={cardName}
                     onChange={(e) => setCardName(e.target.value)}
                     placeholder="Full name on card"
-                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="cardNum" className="text-xs">Card Number *</Label>
+                  <Label htmlFor="cardNum" className={fieldLabelCls}>
+                    Card Number *
+                  </Label>
                   <Input
                     id="cardNum"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value)}
                     placeholder="•••• •••• •••• ••••"
                     maxLength={19}
-                    className="mt-1"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="expiry" className="text-xs">Expiry *</Label>
+                    <Label htmlFor="expiry" className={fieldLabelCls}>
+                      Expiry *
+                    </Label>
                     <Input
                       id="expiry"
                       value={cardExpiry}
                       onChange={(e) => setCardExpiry(e.target.value)}
                       placeholder="MM/YY"
                       maxLength={5}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="cvc" className="text-xs">CVC *</Label>
+                    <Label htmlFor="cvc" className={fieldLabelCls}>
+                      CVC *
+                    </Label>
                     <Input
                       id="cvc"
                       value={cardCvc}
                       onChange={(e) => setCardCvc(e.target.value)}
                       placeholder="•••"
                       maxLength={4}
-                      className="mt-1"
                     />
                   </div>
                 </div>
@@ -572,21 +621,30 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
           </div>
         )}
 
+        {/* Step 4: Confirmation / Processing */}
         {step === 4 && !orderComplete && !processing && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-3">
             <h3 className="text-sm font-medium">Review Your Order</h3>
             <Card>
               <CardContent className="p-4 space-y-3 text-sm">
                 <div>
                   <span className="text-xs text-muted-foreground">Customer</span>
                   <p className="font-medium">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{email} · {phone}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {email} · {phone}
+                  </p>
                 </div>
                 <Separator />
                 <div>
                   <span className="text-xs text-muted-foreground">Installation Address</span>
-                  <p>{addressLine1}{addressLine2 ? `, ${addressLine2}` : ""}</p>
-                  <p>{city}{county ? `, ${county}` : ""}, {postcode}</p>
+                  <p>
+                    {addressLine1}
+                    {addressLine2 ? `, ${addressLine2}` : ""}
+                  </p>
+                  <p>
+                    {city}
+                    {county ? `, ${county}` : ""}, {postcode}
+                  </p>
                 </div>
                 <Separator />
                 <div>
@@ -619,7 +677,7 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
 
         {step === 4 && processing && (
           <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <Spinner size="lg" />
+            <Loader2 className="h-10 w-10 text-primary animate-spinner" />
             <p className="text-sm font-medium">Processing your order…</p>
             <p className="text-xs text-muted-foreground">
               Creating customer account and provisioning services
@@ -634,18 +692,22 @@ export function NewCustomerWizard({ open, onOpenChange }: NewCustomerWizardProps
             </div>
             <h3 className="text-lg font-semibold">Order Complete!</h3>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Customer <strong>{displayName}</strong> has been created and their services are
-              being provisioned. Order reference:{" "}
-              <strong>ORD-{Math.floor(7100 + Math.random() * 900)}</strong>
+              Customer <strong>{displayName}</strong> has been created and their services are being
+              provisioned. Order reference: <strong>{orderRef}</strong>
             </p>
-            <Button onClick={handleClose} className="mt-2">Close</Button>
+            <Button onClick={handleClose} className="mt-2">
+              Close
+            </Button>
           </div>
         )}
 
-        <Separator />
+        <div className={cn(step === 3 ? "pt-3 pb-3" : "pt-8 pb-3")}>
+          <Separator />
+        </div>
 
+        {/* Navigation */}
         {!orderComplete && (
-          <div className="flex justify-between">
+          <div className="flex justify-between pt-4 pb-2">
             <Button
               variant="outline"
               size="sm"

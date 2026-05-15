@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Download, Tag, GitMerge, X } from "lucide-react";
+import { Download, Tag, GitMerge, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button/button";
+import { Badge } from "@/components/ui/badge/badge";
 import {
   Select,
   SelectContent,
@@ -32,14 +33,14 @@ export function BulkActionsBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 p-2.5 rounded-md bg-primary/10 border border-primary/30 text-sm flex-wrap">
-      <span className="font-medium text-primary">{selectedCount} selected</span>
-      <span className="text-muted-foreground">·</span>
-      <Button variant="outline" size="sm" onClick={onExport}>
-        <Download className="h-3.5 w-3.5" /> Export CSV
-      </Button>
-      <div className="flex items-center gap-1">
-        <div className="w-40">
+    <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-primary/5 border-primary/20 animate-in slide-in-from-top-2 flex-wrap">
+      <Badge variant="secondary" className="text-xs font-medium gap-1">
+        <UserCheck className="h-3 w-3" />
+        {selectedCount} selected
+      </Badge>
+
+      <div className="flex items-center gap-1.5 flex-1">
+        <div className="w-[140px]">
           <Select
             value={tagId}
             onValueChange={(v) => {
@@ -48,7 +49,8 @@ export function BulkActionsBar({
               setTimeout(() => setTagId(undefined), 50);
             }}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-7 text-xs">
+              <Tag className="h-3 w-3" />
               <SelectValue placeholder="Apply tag…" />
             </SelectTrigger>
             <SelectContent>
@@ -66,13 +68,26 @@ export function BulkActionsBar({
             </SelectContent>
           </Select>
         </div>
-        <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onExport}>
+          <Download className="h-3 w-3" /> Export
+        </Button>
+
+        {selectedCount >= 2 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onMerge}>
+            <GitMerge className="h-3 w-3" /> Merge
+          </Button>
+        )}
       </div>
-      <Button variant="outline" size="sm" onClick={onMerge} disabled={selectedCount < 2}>
-        <GitMerge className="h-3.5 w-3.5" /> Merge
-      </Button>
-      <Button variant="ghost" size="sm" className="ml-auto" onClick={onClearSelection}>
-        <X className="h-3.5 w-3.5" /> Clear
+
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="h-6 w-6"
+        onClick={onClearSelection}
+        aria-label="Clear selection"
+      >
+        <X className="h-3 w-3" />
       </Button>
     </div>
   );

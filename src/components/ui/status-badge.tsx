@@ -14,6 +14,8 @@ export const statusToneMap: Record<string, BadgeTone> = {
   Closed: "neutral",
   Offline: "neutral",
   Away: "warning",
+  Available: "success",
+  Busy: "warning",
   Provisioning: "info",
 
   // Tickets

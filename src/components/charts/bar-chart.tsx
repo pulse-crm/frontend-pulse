@@ -3,6 +3,7 @@ interface BarChartProps {
   height?: number;
   className?: string;
   color?: string;
+  formatValue?: (v: number) => string;
 }
 
 export function BarChart({
@@ -10,6 +11,7 @@ export function BarChart({
   height = 220,
   className,
   color = "hsl(215 90% 52%)",
+  formatValue,
 }: BarChartProps) {
   if (!data || data.length === 0) return null;
   const width = 600;
@@ -53,7 +55,7 @@ export function BarChart({
             fontSize="10"
             fill="hsl(215 14% 46%)"
           >
-            {g.value}
+            {formatValue ? formatValue(g.value) : g.value}
           </text>
         </g>
       ))}

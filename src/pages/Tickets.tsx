@@ -32,7 +32,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select/select";
+} from "@/components/ui/select/select-pf";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +61,8 @@ import {
   users,
   type AssignmentTeam,
 } from "@/data/mock";
-import { Field } from "@/components/ui/field/field";
+import { Label } from "@/components/ui/label/label";
+import { SearchablePicker } from "@/components/ui/searchable-picker/searchable-picker";
 import { UserMinus } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "@/components/ui/toast/toaster";
@@ -89,6 +90,8 @@ export default function Tickets() {
   >({});
   const [viewName, setViewName] = React.useState("");
   const [saveOpen, setSaveOpen] = React.useState(false);
+  const [bulkAssignOpen, setBulkAssignOpen] = React.useState(false);
+  const [bulkAssignee, setBulkAssignee] = React.useState("");
 
   const { views, saveView, deleteView } = useSavedViews<TicketFilters>();
   const assignees = Array.from(new Set(ticketsData.map((t) => t.assignee)));
@@ -228,11 +231,15 @@ export default function Tickets() {
 
   const ticketsTable = (
     <>
-      {views.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Views:</span>
-          {views.map((v) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Views:</span>
+        {views.length === 0 ? (
+          <span className="text-[11px] text-muted-foreground/70">
+            No saved views — apply filters and click the bookmark to save one.
+          </span>
+        ) : (
+          views.map((v) => (
             <div key={v.id} className="flex items-center gap-0.5">
               <Button
                 variant="outline"
@@ -250,60 +257,65 @@ export default function Tickets() {
                 <X className="h-2.5 w-2.5 text-muted-foreground" />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex gap-2 flex-nowrap w-full md:w-1/2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search tickets…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-8"
-            size="sm"
+            className="pl-8 h-9"
           />
         </div>
-        <Select value={filters.priority} onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}>
-          <SelectTrigger className="w-32 h-9 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priority</SelectItem>
-            <SelectItem value="Critical">Critical</SelectItem>
-            <SelectItem value="High">High</SelectItem>
-            <SelectItem value="Medium">Medium</SelectItem>
-            <SelectItem value="Low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.status} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>
-          <SelectTrigger className="w-36 h-9 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Open">Open</SelectItem>
-            <SelectItem value="In Progress">In Progress</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="Escalated">Escalated</SelectItem>
-            <SelectItem value="Resolved">Resolved</SelectItem>
-            <SelectItem value="Closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.assignee} onValueChange={(v) => setFilters((f) => ({ ...f, assignee: v }))}>
-          <SelectTrigger className="w-40 h-9 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Assignees</SelectItem>
-            {assignees.map((a) => (
-              <SelectItem key={a} value={a}>
-                {a}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="w-32 flex-none">
+          <Select value={filters.priority} onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="Critical">Critical</SelectItem>
+              <SelectItem value="High">High</SelectItem>
+              <SelectItem value="Medium">Medium</SelectItem>
+              <SelectItem value="Low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-36 flex-none">
+          <Select value={filters.status} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="Open">Open</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="Escalated">Escalated</SelectItem>
+              <SelectItem value="Resolved">Resolved</SelectItem>
+              <SelectItem value="Closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-40 flex-none">
+          <Select value={filters.assignee} onValueChange={(v) => setFilters((f) => ({ ...f, assignee: v }))}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assignees</SelectItem>
+              {assignees.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Popover
           open={saveOpen}
           onOpenChange={setSaveOpen}
@@ -341,9 +353,9 @@ export default function Tickets() {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs"
+            className="h-7 text-xs gap-1"
             onClick={() => {
-              toast({ title: "Resolved", description: `${selectedIds.size} tickets resolved`, variant: "success" });
+              toast({ title: "Bulk Resolve", description: `${selectedIds.size} tickets marked as resolved.`, variant: "success" });
               setSelectedIds(new Set());
             }}
           >
@@ -352,9 +364,9 @@ export default function Tickets() {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs"
+            className="h-7 text-xs gap-1"
             onClick={() => {
-              toast({ title: "Escalated", description: `${selectedIds.size} tickets escalated`, variant: "destructive" });
+              toast({ title: "Bulk Escalate", description: `${selectedIds.size} tickets escalated.`, variant: "destructive" });
               setSelectedIds(new Set());
             }}
           >
@@ -363,15 +375,12 @@ export default function Tickets() {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs"
-            onClick={() => {
-              toast({ title: "Assigned", description: `${selectedIds.size} tickets assigned` });
-              setSelectedIds(new Set());
-            }}
+            className="h-7 text-xs gap-1"
+            onClick={() => setBulkAssignOpen(true)}
           >
             <UserCheck className="h-3 w-3" /> Assign
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto" onClick={() => setSelectedIds(new Set())}>
+          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 ml-auto" onClick={() => setSelectedIds(new Set())}>
             <X className="h-3 w-3" /> Clear
           </Button>
         </div>
@@ -464,11 +473,11 @@ export default function Tickets() {
 
       <Tabs defaultValue="tickets" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tickets">
-            <ClipboardList className="h-3.5 w-3.5 mr-1.5" /> Tickets
+          <TabsTrigger value="tickets" className="gap-1.5">
+            <ClipboardList className="h-3.5 w-3.5" /> Tickets
           </TabsTrigger>
-          <TabsTrigger value="teams">
-            <Users className="h-3.5 w-3.5 mr-1.5" /> Team Management
+          <TabsTrigger value="teams" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" /> Team Management
           </TabsTrigger>
         </TabsList>
 
@@ -484,7 +493,7 @@ export default function Tickets() {
                 Create and manage teams used for ticket assignment and distribution.
               </p>
             </div>
-            <Button size="sm" onClick={openNewTeam}>
+            <Button size="sm" className="gap-1.5" onClick={openNewTeam}>
               <Plus className="h-3.5 w-3.5" /> New Team
             </Button>
           </div>
@@ -555,6 +564,47 @@ export default function Tickets() {
         </TabsContent>
       </Tabs>
 
+      {/* Bulk Assign dialog */}
+      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Assign {selectedIds.size} Tickets</DialogTitle>
+          </DialogHeader>
+          <Select value={bulkAssignee} onValueChange={setBulkAssignee}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select assignee…" />
+            </SelectTrigger>
+            <SelectContent>
+              {assignees.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setBulkAssignOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!bulkAssignee}
+              onClick={() => {
+                toast({
+                  title: "Bulk Assign",
+                  description: `${selectedIds.size} tickets assigned to ${bulkAssignee}.`,
+                });
+                setSelectedIds(new Set());
+                setBulkAssignOpen(false);
+                setBulkAssignee("");
+              }}
+            >
+              Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Team create / edit dialog */}
       <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
         <DialogContent className="max-w-md">
@@ -563,54 +613,56 @@ export default function Tickets() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <Field label="Team Name" required>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Team Name</Label>
               <Input
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
                 placeholder="e.g. Billing Team"
-                size="sm"
+                className="h-8 text-sm"
               />
-            </Field>
-            <Field label="Description">
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
               <Input
                 value={teamDescription}
                 onChange={(e) => setTeamDescription(e.target.value)}
-                placeholder="What this team handles…"
-                size="sm"
+                placeholder="What this team handles..."
+                className="h-8 text-sm"
               />
-            </Field>
+            </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <p className="text-xs font-medium">Members ({teamMembers.length})</p>
+              <Label className="text-xs">Members ({teamMembers.length})</Label>
               <div className="flex gap-2">
-                <Select value={memberToAdd} onValueChange={setMemberToAdd}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Pick an agent to add…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users
-                      .filter((u) => !teamMembers.includes(u.name))
-                      .map((u) => (
-                        <SelectItem key={u.id} value={u.name}>
-                          {u.name} · {u.role}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <SearchablePicker
+                  className="flex-1"
+                  options={users
+                    .filter((u) => !teamMembers.includes(u.name))
+                    .map((u) => ({
+                      value: u.name,
+                      label: u.name,
+                      description: `${u.status} · ${u.role}`,
+                    }))}
+                  value={memberToAdd}
+                  onValueChange={setMemberToAdd}
+                  placeholder="Search agents to add..."
+                />
+              </div>
+              {memberToAdd && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 text-xs"
+                  className="h-7 text-xs gap-1"
                   onClick={handleAddMember}
-                  disabled={!memberToAdd}
                 >
-                  <Plus className="h-3 w-3" /> Add
+                  <Plus className="h-3 w-3" /> Add {memberToAdd}
                 </Button>
-              </div>
+              )}
 
-              {teamMembers.length > 0 ? (
+              {teamMembers.length > 0 && (
                 <div className="space-y-1 mt-2">
                   {teamMembers.map((m) => (
                     <div
@@ -628,7 +680,8 @@ export default function Tickets() {
                     </div>
                   ))}
                 </div>
-              ) : (
+              )}
+              {teamMembers.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-2">No members added yet</p>
               )}
             </div>

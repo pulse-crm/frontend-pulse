@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs/tabs";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { NewCustomerWizard } from "@/components/NewCustomerWizard";
 
+import { CustomerMergeDialog } from "@/components/customer-search/CustomerMergeDialog";
 import { QuickActionsGrid } from "@/components/customer-search/QuickActionsGrid";
 import { RecentCustomersList } from "@/components/customer-search/RecentCustomersList";
 import {
@@ -43,6 +44,8 @@ export default function CustomerSearch() {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [wizardOpen, setWizardOpen] = React.useState(false);
+  const [mergeOpen, setMergeOpen] = React.useState(false);
+  const newCustomerBtnRef = React.useRef<HTMLButtonElement>(null);
 
   const { tags, getTagsForCustomer, addTag, unassignTag, bulkAssignTag } = useCustomerTags();
 
@@ -182,10 +185,7 @@ export default function CustomerSearch() {
 
   const handleMerge = () => {
     if (selected.size < 2) return;
-    toast({
-      title: "Merge requested",
-      description: `${selected.size} accounts queued for review.`,
-    });
+    setMergeOpen(true);
   };
 
   const clearFilters = () => setFilters(emptyFilters);
@@ -197,7 +197,7 @@ export default function CustomerSearch() {
           <h1 className="text-2xl font-bold">Search</h1>
           <p className="text-sm text-muted-foreground">Search customers, tickets, or orders</p>
         </div>
-        <Button size="sm" onClick={() => setWizardOpen(true)}>
+        <Button ref={newCustomerBtnRef} size="sm" onClick={() => setWizardOpen(true)}>
           <Plus className="h-3.5 w-3.5" /> New Customer
         </Button>
       </div>
@@ -276,14 +276,14 @@ export default function CustomerSearch() {
         <>
           <Tabs value={tab} onValueChange={(v) => setTab(v as SearchTab)}>
             <TabsList className="w-full">
-              <TabsTrigger value="customers" className="flex-1">
-                <UserIcon className="h-3.5 w-3.5 mr-1.5" /> Customers ({counts.customers})
+              <TabsTrigger value="customers" className="flex-1 gap-1.5">
+                <UserIcon className="h-3.5 w-3.5" /> Customers ({counts.customers})
               </TabsTrigger>
-              <TabsTrigger value="tickets" className="flex-1">
-                <TicketIcon className="h-3.5 w-3.5 mr-1.5" /> Tickets ({counts.tickets})
+              <TabsTrigger value="tickets" className="flex-1 gap-1.5">
+                <TicketIcon className="h-3.5 w-3.5" /> Tickets ({counts.tickets})
               </TabsTrigger>
-              <TabsTrigger value="orders" className="flex-1">
-                <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> Orders ({counts.orders})
+              <TabsTrigger value="orders" className="flex-1 gap-1.5">
+                <ShoppingCart className="h-3.5 w-3.5" /> Orders ({counts.orders})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -337,7 +337,12 @@ export default function CustomerSearch() {
         </>
       )}
 
-      <NewCustomerWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+      <NewCustomerWizard open={wizardOpen} onOpenChange={setWizardOpen} anchorRef={newCustomerBtnRef} />
+      <CustomerMergeDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        duplicates={customers.filter((c) => selected.has(c.id))}
+      />
     </div>
   );
 }
