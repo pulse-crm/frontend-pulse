@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog/dialog";
 import { Button } from "@/components/ui/button/button";
+import { Badge } from "@/components/ui/badge/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "@/components/ui/toast/toaster";
 import type { Device } from "@/data/mock";
@@ -20,56 +21,6 @@ interface DeviceManagementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function DataGrid({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 rounded-lg border border-border p-3 bg-muted/30">
-      {rows.map((r) => (
-        <div key={r.label}>
-          <span className="text-xs text-muted-foreground">{r.label}</span>
-          <p className="text-sm font-medium">{r.value}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        {title}
-      </h4>
-      {children}
-    </div>
-  );
-}
-
-function Bar({ label, value, total }: { label: string; value: number; total: number }) {
-  const pct = Math.min(100, Math.round((value / total) * 100));
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xs font-medium">
-          {value} / {total} devices
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 // Synthetic numbers for telemetry — pulse mock doesn't carry them, but they make
 // the demo look complete. Stable per device via the serial number.
 function hash(seed: string): number {
@@ -78,20 +29,30 @@ function hash(seed: string): number {
   return h;
 }
 
+const connectedDevices = [
+  { name: "iPhone 15 Pro", mac: "A4:B1:C2:D3:E4:F5", band: "5 GHz", ip: "192.168.1.10" },
+  { name: "Samsung Smart TV", mac: "B2:C3:D4:E5:F6:A1", band: "5 GHz", ip: "192.168.1.11" },
+  { name: "MacBook Air", mac: "C3:D4:E5:F6:A1:B2", band: "5 GHz", ip: "192.168.1.12" },
+  { name: "Ring Doorbell", mac: "D4:E5:F6:A1:B2:C3", band: "2.4 GHz", ip: "192.168.1.20" },
+  { name: "Echo Dot", mac: "E5:F6:A1:B2:C3:D4", band: "2.4 GHz", ip: "192.168.1.21" },
+];
+
 export function DeviceManagementDialog({ device, open, onOpenChange }: DeviceManagementDialogProps) {
   if (!device) return null;
 
   const isRouter = device.type === "Router" || device.type === "Modem";
   const seed = hash(device.serialNumber);
-  const downSpeed = 800 + (seed % 700); // 800-1500 Mbps
-  const upSpeed = 80 + (seed % 120); // 80-200 Mbps
-  const latency = 4 + (seed % 8); // 4-12 ms
-  const devices2g = 1 + (seed % 4); // 1-4
-  const devices5g = 3 + ((seed >> 2) % 6); // 3-8
+  const down = (74 + (seed % 30)).toFixed(1); // ~74-104 Mbps
+  const up = (18 + (seed % 10)).toFixed(1);
+  const latency = 8 + (seed % 8); // 8-16 ms
+  const wifi24 = 50 + (seed % 30); // %
+  const wifi5 = 35 + ((seed >> 2) % 30); // %
+  const dev24 = 1 + (seed % 4);
+  const dev5 = 3 + ((seed >> 2) % 6);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Cpu className="h-5 w-5 text-primary" />
@@ -100,136 +61,239 @@ export function DeviceManagementDialog({ device, open, onOpenChange }: DeviceMan
         </DialogHeader>
 
         <div className="space-y-5">
-          <Section icon={Monitor} title="Product Information">
-            <DataGrid
-              rows={[
-                { label: "Make", value: "Pulse Networks" },
-                { label: "Model", value: device.name.replace("Pulse ", "") },
-                { label: "Type", value: device.type },
-                { label: "Serial Number", value: <span className="font-mono">{device.serialNumber}</span> },
-                { label: "Assigned Service", value: "Fibre Broadband" },
-                { label: "Warranty Expiry", value: "2027-08-14" },
-                { label: "Status", value: <StatusBadge status={device.status} /> },
-                ...(device.ipAddress
-                  ? [{ label: "IP Address", value: <span className="font-mono">{device.ipAddress}</span> }]
-                  : []),
-              ]}
-            />
-          </Section>
+          {/* Product Information */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+              Product Information
+            </h4>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border p-3 bg-muted/30">
+              <div>
+                <span className="text-xs text-muted-foreground">Make</span>
+                <p className="text-sm font-medium">Pulse Networks</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Model</span>
+                <p className="text-sm font-medium">{device.name.replace("Pulse ", "")}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Type</span>
+                <p className="text-sm font-medium">{device.type}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Serial Number</span>
+                <p className="text-sm font-medium font-mono">{device.serialNumber}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Assigned Service</span>
+                <p className="text-sm font-medium">Fibre Broadband</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Warranty Expiry</span>
+                <p className="text-sm font-medium">2027-08-14</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Status</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={device.status} />
+                </div>
+              </div>
+              {device.ipAddress && (
+                <div>
+                  <span className="text-xs text-muted-foreground">IP Address</span>
+                  <p className="text-sm font-medium font-mono">{device.ipAddress}</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-          <Section icon={RefreshCw} title="Firmware">
-            <DataGrid
-              rows={[
-                { label: "Current Firmware", value: <span className="font-mono">{device.firmware}</span> },
-                { label: "Latest Available", value: <span className="font-mono">v4.3.0-stable</span> },
-                { label: "Last Updated", value: "2026-01-12 03:22" },
-                { label: "Auto-Update", value: "Enabled (maintenance window)" },
-              ]}
-            />
+          {/* Firmware Information */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              Firmware Information
+            </h4>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border p-3 bg-muted/30">
+              <div>
+                <span className="text-xs text-muted-foreground">Current Firmware</span>
+                <p className="text-sm font-medium font-mono">{device.firmware}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Latest Available</span>
+                <p className="text-sm font-medium font-mono">v4.3.0-stable</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Last Updated</span>
+                <p className="text-sm font-medium">2026-01-12 03:22</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Auto-Update</span>
+                <p className="text-sm font-medium">Enabled (Maintenance Window)</p>
+              </div>
+            </div>
             <div className="flex gap-2 mt-2">
               <Button
                 size="sm"
                 variant="outline"
+                className="text-xs"
                 onClick={() => toast({ title: "Checking for updates", description: `${device.name} is up to date.` })}
               >
-                <RefreshCw className="h-3 w-3" /> Check for Update
+                <RefreshCw className="h-3 w-3 mr-1" /> Check for Update
               </Button>
               <Button
                 size="sm"
                 variant="outline"
+                className="text-xs"
                 onClick={() => toast({ title: "Update queued", description: `${device.name} will update at next window.` })}
               >
-                <Zap className="h-3 w-3" /> Push Update
+                <Zap className="h-3 w-3 mr-1" /> Push Update
               </Button>
             </div>
-          </Section>
+          </div>
 
+          {/* In-Home Telemetry (Router/Modem only) */}
           {isRouter && (
-            <>
-              <Section icon={Wifi} title="In-Home Telemetry">
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-border p-3 bg-muted/30">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium">Connection Status</span>
-                      <StatusBadge status={device.status === "Online" ? "Online" : "Offline"} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Uptime</span>
-                        <p className="text-sm font-medium">14d 7h 32m</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Last Reboot</span>
-                        <p className="text-sm font-medium">2026-04-29</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">WAN IP</span>
-                        <p className="text-sm font-medium font-mono">82.12.45.198</p>
-                      </div>
-                    </div>
+            <div>
+              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-muted-foreground" />
+                In-Home Telemetry
+              </h4>
+              <div className="space-y-3">
+                {/* Connection Status */}
+                <div className="rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium">Connection Status</span>
+                    <Badge variant="default" className="text-xs bg-green-600">
+                      {device.status === "Online" ? "Online" : device.status}
+                    </Badge>
                   </div>
-
-                  <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
-                    <span className="text-xs font-medium block">Wi-Fi Performance</span>
-                    <Bar label="2.4 GHz Band" value={devices2g} total={6} />
-                    <Bar label="5 GHz Band" value={devices5g} total={10} />
-                  </div>
-
-                  <div className="rounded-lg border border-border p-3 bg-muted/30">
-                    <span className="text-xs font-medium block mb-2">Line Statistics</span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Download Speed</span>
-                        <p className="text-sm font-medium font-mono">{downSpeed} Mbps</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Upload Speed</span>
-                        <p className="text-sm font-medium font-mono">{upSpeed} Mbps</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Latency</span>
-                        <p className="text-sm font-medium font-mono">{latency} ms</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">SNR Margin</span>
-                        <p className="text-sm font-medium font-mono">18.4 / 12.1 dB</p>
-                      </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Uptime</span>
+                      <p className="text-sm font-medium">14d 7h 32m</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Last Reboot</span>
+                      <p className="text-sm font-medium">2026-04-29</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">WAN IP</span>
+                      <p className="text-sm font-medium font-mono">82.12.45.198</p>
                     </div>
                   </div>
                 </div>
-              </Section>
-            </>
+
+                {/* Wi-Fi Performance */}
+                <div className="rounded-lg border p-3 bg-muted/30">
+                  <span className="text-xs font-medium block mb-2">Wi-Fi Performance</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">2.4 GHz Band</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${wifi24}%` }} />
+                        </div>
+                        <span className="text-xs font-mono">{wifi24}%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{dev24} devices connected</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">5 GHz Band</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${wifi5}%` }} />
+                        </div>
+                        <span className="text-xs font-mono">{wifi5}%</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{dev5} devices connected</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Line Stats */}
+                <div className="rounded-lg border p-3 bg-muted/30">
+                  <span className="text-xs font-medium block mb-2">Line Statistics</span>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Download Speed</span>
+                      <p className="text-sm font-medium">{down} Mbps</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Upload Speed</span>
+                      <p className="text-sm font-medium">{up} Mbps</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Latency</span>
+                      <p className="text-sm font-medium">{latency}ms</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">SNR Margin (Down)</span>
+                      <p className="text-sm font-medium">8.2 dB</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">SNR Margin (Up)</span>
+                      <p className="text-sm font-medium">12.4 dB</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Line Attenuation</span>
+                      <p className="text-sm font-medium">22.5 dB</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Connected Devices */}
+                <div className="rounded-lg border p-3 bg-muted/30">
+                  <span className="text-xs font-medium block mb-2">Connected Devices (8)</span>
+                  <div className="space-y-1.5">
+                    {connectedDevices.map((cd) => (
+                      <div key={cd.mac} className="flex items-center justify-between text-xs">
+                        <span className="font-medium w-36">{cd.name}</span>
+                        <span className="font-mono text-muted-foreground w-36">{cd.mac}</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {cd.band}
+                        </Badge>
+                        <span className="font-mono text-muted-foreground">{cd.ip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
-          <div className="flex gap-2 pt-3 border-t border-border">
+          {/* Actions */}
+          <div className="flex gap-2 pt-2 border-t">
             <Button
               size="sm"
               variant="outline"
+              className="text-xs"
               onClick={() => toast({ title: "Reboot queued", description: `${device.name} will reboot.` })}
             >
-              <RefreshCw className="h-3 w-3" /> Reboot Device
+              <RefreshCw className="h-3 w-3 mr-1" /> Reboot Device
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="text-xs"
               onClick={() => toast({ title: "Diagnostics running", description: "Results will appear shortly." })}
             >
-              <Shield className="h-3 w-3" /> Run Diagnostics
+              <Shield className="h-3 w-3 mr-1" /> Run Diagnostics
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="text-xs"
               onClick={() => toast({ title: "Speed test started" })}
             >
-              <Network className="h-3 w-3" /> Speed Test
+              <Network className="h-3 w-3 mr-1" /> Speed Test
             </Button>
             <Button
               size="sm"
               variant="destructive"
-              className="ml-auto"
+              className="text-xs ml-auto"
               onClick={() => toast({ title: "Fault reported", description: `Ticket created for ${device.name}.`, variant: "destructive" })}
             >
-              <XCircle className="h-3 w-3" /> Report Fault
+              <XCircle className="h-3 w-3 mr-1" /> Report Fault
             </Button>
           </div>
         </div>

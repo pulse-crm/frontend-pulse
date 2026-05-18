@@ -75,7 +75,11 @@ interface TicketFilters extends Record<string, string> {
   assignee: string;
 }
 
-const defaultFilters: TicketFilters = { status: "all", priority: "all", assignee: "all" };
+const defaultFilters: TicketFilters = {
+  status: "All Status",
+  priority: "All Priority",
+  assignee: "All Assignees",
+};
 
 export default function Tickets() {
   const navigate = useNavigate();
@@ -172,9 +176,10 @@ export default function Tickets() {
       t.subject.toLowerCase().includes(q) ||
       t.id.toLowerCase().includes(q) ||
       t.customer.toLowerCase().includes(q);
-    const matchesStatus = filters.status === "all" || t.status === filters.status;
-    const matchesPriority = filters.priority === "all" || t.priority === filters.priority;
-    const matchesAssignee = filters.assignee === "all" || t.assignee === filters.assignee;
+    const matchesStatus = filters.status === "All Status" || t.status === filters.status;
+    const matchesPriority = filters.priority === "All Priority" || t.priority === filters.priority;
+    const matchesAssignee =
+      filters.assignee === "All Assignees" || t.assignee === filters.assignee;
     return matchesQuery && matchesStatus && matchesPriority && matchesAssignee;
   });
 
@@ -277,7 +282,7 @@ export default function Tickets() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="All Priority">All Priority</SelectItem>
               <SelectItem value="Critical">Critical</SelectItem>
               <SelectItem value="High">High</SelectItem>
               <SelectItem value="Medium">Medium</SelectItem>
@@ -291,7 +296,7 @@ export default function Tickets() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="All Status">All Status</SelectItem>
               <SelectItem value="Open">Open</SelectItem>
               <SelectItem value="In Progress">In Progress</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
@@ -307,7 +312,7 @@ export default function Tickets() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Assignees</SelectItem>
+              <SelectItem value="All Assignees">All Assignees</SelectItem>
               {assignees.map((a) => (
                 <SelectItem key={a} value={a}>
                   {a}

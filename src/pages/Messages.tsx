@@ -378,8 +378,8 @@ export default function Messages() {
     <div className="page-stack flex flex-col">
       <Card className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr] overflow-hidden min-h-[640px]">
         {/* Left rail */}
-        <div className="border-r border-border flex flex-col bg-muted/20 min-w-0">
-          <div className="p-3 border-b border-border space-y-2">
+        <div data-tour="messenger-conversation-list" className="border-r border-border flex flex-col bg-muted/20 min-w-0">
+          <div data-tour="messenger-header" className="p-3 border-b border-border space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold">Messages</h2>
@@ -409,6 +409,7 @@ export default function Messages() {
                   <Users className="h-4 w-4" />
                 </Button>
                 <Button
+                  data-tour="messenger-new-chat-btn"
                   variant="ghost"
                   size="icon-sm"
                   className="h-7 w-7"
@@ -904,7 +905,7 @@ export default function Messages() {
             )}
 
             {/* Compose */}
-            <div className="p-3 border-t border-border">
+            <div data-tour="messenger-compose-area" className="p-3 border-t border-border">
               <div className="flex items-end gap-2">
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Attach file">
                   <Paperclip className="h-4 w-4" />
@@ -1019,7 +1020,7 @@ export default function Messages() {
                   }
                   className="min-h-[40px] max-h-[120px] resize-none text-sm flex-1"
                 />
-                <Button onClick={handleSend} disabled={!draft.trim()} size="icon" className="h-9 w-9 shrink-0">
+                <Button data-tour="messenger-send-btn" onClick={handleSend} disabled={!draft.trim()} size="icon" className="h-9 w-9 shrink-0">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

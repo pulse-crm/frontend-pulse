@@ -21,7 +21,7 @@ export function CollapsiblePanel({
 }: CollapsiblePanelProps) {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader
         className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={() => setOpen(!open)}

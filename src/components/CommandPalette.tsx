@@ -56,20 +56,57 @@ export function CommandPalette() {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
 
-  // Global ⌘K / Ctrl+K
+  // Global ⌘K / Ctrl+K + "G then <key>" navigation shortcuts
   React.useEffect(() => {
+    let gPressed = false;
+    let gTimer: ReturnType<typeof setTimeout>;
+
     const down = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        if (!(e.key === "k" && (e.metaKey || e.ctrlKey))) return;
-      }
+      const inField =
+        e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((o) => !o);
+        return;
+      }
+
+      // Sequence shortcuts must not fire while typing or with modifiers held.
+      if (inField || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "g" || e.key === "G") {
+        if (!gPressed) {
+          gPressed = true;
+          clearTimeout(gTimer);
+          gTimer = setTimeout(() => {
+            gPressed = false;
+          }, 500);
+          return;
+        }
+      }
+
+      if (gPressed) {
+        gPressed = false;
+        clearTimeout(gTimer);
+        const goMap: Record<string, string> = {
+          d: "/dashboard",
+          c: "/",
+          t: "/tickets",
+          s: "/settings",
+        };
+        const path = goMap[e.key.toLowerCase()];
+        if (path) {
+          e.preventDefault();
+          navigate(path);
+        }
       }
     };
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
+    return () => {
+      document.removeEventListener("keydown", down);
+      clearTimeout(gTimer);
+    };
+  }, [navigate]);
 
   // Reset on close + focus on open
   React.useEffect(() => {

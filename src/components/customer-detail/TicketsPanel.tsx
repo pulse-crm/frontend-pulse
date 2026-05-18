@@ -1,10 +1,28 @@
 import * as React from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Phone, Mail, MessageSquare, Monitor, Globe, Bot } from "lucide-react";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 import { DataTable, type Column } from "@/components/ui/table/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge/badge";
 import { TicketDetailDialog } from "./TicketDetailDialog";
 import type { Ticket } from "@/data/mock";
+
+/** Pulse tickets have no channel field — approximate one from the category so
+ *  the leading "Ch" icon column mirrors project-files. */
+const categoryChannelIcon: Record<string, React.ComponentType<{ className?: string }>> = {
+  Billing: Mail,
+  Network: Phone,
+  Provisioning: Monitor,
+  Performance: MessageSquare,
+};
+
+/** Deterministic pseudo AI-confidence so the AI column has a stable value
+ *  (pulse mock has no aiConfidence field). */
+function aiConfidence(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return 70 + (h % 30);
+}
 
 function slaPercent(t: Ticket): { pct: number; breached: boolean } {
   const created = Date.parse(t.createdAt);
@@ -33,11 +51,19 @@ export function TicketsPanel({ data }: { data: Ticket[] }) {
   const [open, setOpen] = React.useState(false);
 
   const columns: Column<Ticket>[] = [
+    {
+      key: "channel",
+      header: "Ch",
+      render: (t) => {
+        const Icon = categoryChannelIcon[t.category] ?? Globe;
+        return <Icon className="h-3.5 w-3.5 text-muted-foreground" />;
+      },
+    },
     { key: "id", header: "ID", render: (t) => <span className="font-mono text-xs">{t.id}</span> },
     {
       key: "subject",
       header: "Subject",
-      render: (t) => <span className="font-medium max-w-[180px] truncate inline-block">{t.subject}</span>,
+      render: (t) => <span className="font-medium max-w-[150px] truncate inline-block">{t.subject}</span>,
     },
     { key: "priority", header: "Priority", render: (t) => <StatusBadge status={t.priority} /> },
     { key: "status", header: "Status", render: (t) => <StatusBadge status={t.status} /> },
@@ -57,6 +83,42 @@ export function TicketsPanel({ data }: { data: Ticket[] }) {
           </div>
         );
       },
+    },
+    {
+      key: "esc",
+      header: "Esc",
+      render: (t) =>
+        t.status === "Escalated" ? (
+          <Badge
+            variant="outline"
+            className="text-[9px] bg-destructive/10 text-destructive border-destructive/30"
+          >
+            L1
+          </Badge>
+        ) : (
+          <span className="text-[9px] text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "ai",
+      header: "AI",
+      render: (t) => (
+        <Badge variant="outline" className="text-[9px] gap-0.5 bg-primary/10 border-primary/30">
+          <Bot className="h-2.5 w-2.5" />
+          {aiConfidence(t.id)}%
+        </Badge>
+      ),
+    },
+    {
+      key: "approval",
+      header: "Approval",
+      render: (t) => (
+        <StatusBadge
+          status={
+            t.status === "Resolved" || t.status === "Closed" ? "Approved" : "Pending"
+          }
+        />
+      ),
     },
   ];
   return (

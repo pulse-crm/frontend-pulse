@@ -1,11 +1,39 @@
 import * as React from "react";
-import { Gift, AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+import {
+  Gift,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingUp,
+  Send,
+  Mail,
+  MapPin,
+  MessageCircle,
+} from "lucide-react";
 import { CollapsiblePanel } from "./CollapsiblePanel";
 import { Button } from "@/components/ui/button/button";
 import { Badge } from "@/components/ui/badge/badge";
+import { Input } from "@/components/ui/input/input";
+import { Label } from "@/components/ui/label/label";
+import { Separator } from "@/components/ui/separator/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog/dialog";
 import { toast } from "@/components/ui/toast/toaster";
+import { cn } from "@/lib/cn";
 import type { Customer, Subscription } from "@/data/mock";
 import { formatCurrency } from "@/lib/format";
+
+type DeliveryChannel = "email" | "post" | "whatsapp";
+
+interface QuoteProduct {
+  name: string;
+  desc: string;
+  monthly: number;
+}
 
 interface RetentionOffer {
   id: string;
@@ -34,7 +62,46 @@ interface RetentionUpsellPanelProps {
 
 export function RetentionUpsellPanel({ customer, subscriptions }: RetentionUpsellPanelProps) {
   const [appliedOffer, setAppliedOffer] = React.useState<string | null>(null);
+  const [quoteOpen, setQuoteOpen] = React.useState(false);
+  const [quoteProduct, setQuoteProduct] = React.useState<QuoteProduct | null>(null);
+  const [deliveryChannel, setDeliveryChannel] = React.useState<DeliveryChannel>("email");
+  const [contactEmail, setContactEmail] = React.useState("");
+  const [contactPhone, setContactPhone] = React.useState("");
+  const [contactAddress, setContactAddress] = React.useState("");
   const monthlySpend = subscriptions.reduce((sum, s) => sum + s.monthly, 0);
+
+  const openQuoteDialog = (product: QuoteProduct) => {
+    setQuoteProduct(product);
+    setDeliveryChannel("email");
+    setContactEmail(customer.email);
+    setContactPhone(customer.phone);
+    setContactAddress(customer.postcode);
+    setQuoteOpen(true);
+  };
+
+  const handleSendQuote = () => {
+    if (!quoteProduct) return;
+    const channelLabel =
+      deliveryChannel === "email" ? "Email" : deliveryChannel === "post" ? "Post" : "WhatsApp";
+    const destination =
+      deliveryChannel === "email"
+        ? contactEmail
+        : deliveryChannel === "post"
+          ? contactAddress
+          : contactPhone;
+    toast({
+      title: "Quote Sent",
+      description: `${quoteProduct.name} quote sent to ${customer.name} via ${channelLabel} (${destination}).`,
+    });
+    setQuoteOpen(false);
+    setQuoteProduct(null);
+  };
+
+  const channelCards: { value: DeliveryChannel; icon: React.ElementType; label: string; iconClass: string }[] = [
+    { value: "email", icon: Mail, label: "Email", iconClass: "text-primary" },
+    { value: "post", icon: MapPin, label: "Post", iconClass: "text-primary" },
+    { value: "whatsapp", icon: MessageCircle, label: "WhatsApp", iconClass: "text-success" },
+  ];
   const isExpiring = customer.contractStatus === "Expiring Soon" || customer.contractStatus === "Expired";
   const count = isExpiring ? 1 : 0;
 
@@ -79,7 +146,7 @@ export function RetentionUpsellPanel({ customer, subscriptions }: RetentionUpsel
                   size="sm"
                   variant="outline"
                   className="h-6 text-[10px]"
-                  onClick={() => toast({ title: "Quote sent", description: `${u.name} quote queued for ${customer.name}.` })}
+                  onClick={() => openQuoteDialog({ name: u.name, desc: u.desc, monthly: u.monthly })}
                 >
                   Quote
                 </Button>
@@ -125,6 +192,118 @@ export function RetentionUpsellPanel({ customer, subscriptions }: RetentionUpsel
           <CheckCircle2 className="h-3.5 w-3.5" /> Initiate Contract Renewal
         </Button>
       </div>
+
+      <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Send className="h-4 w-4 text-primary" /> Send Quote
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {quoteProduct && (
+              <div className="p-3 rounded-lg border bg-muted/30 space-y-1">
+                <p className="text-[10px] text-muted-foreground uppercase font-medium">
+                  Offer Details
+                </p>
+                <p className="text-sm font-semibold">{quoteProduct.name}</p>
+                <p className="text-xs text-muted-foreground">{quoteProduct.desc}</p>
+                <p className="text-base font-bold font-mono">
+                  {formatCurrency(quoteProduct.monthly)}/mo
+                </p>
+              </div>
+            )}
+
+            <div className="p-3 rounded-lg border bg-muted/30 space-y-1">
+              <p className="text-[10px] text-muted-foreground uppercase font-medium">Customer</p>
+              <p className="text-sm font-semibold">{customer.name}</p>
+              <p className="text-xs text-muted-foreground font-mono">{customer.accountNumber}</p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Send via</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {channelCards.map((c) => {
+                  const Icon = c.icon;
+                  const selected = deliveryChannel === c.value;
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setDeliveryChannel(c.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-lg border p-3 cursor-pointer transition-colors",
+                        selected
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-accent/50"
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5", c.iconClass)} />
+                      <span className="text-[10px] font-medium">{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {deliveryChannel === "email" && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Email Address</Label>
+                  <Input
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              )}
+              {deliveryChannel === "whatsapp" && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">WhatsApp Number</Label>
+                  <Input
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              )}
+              {deliveryChannel === "post" && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Postal Address</Label>
+                  <Input
+                    value={contactAddress}
+                    onChange={(e) => setContactAddress(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => setQuoteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button size="sm" className="text-xs gap-1.5" onClick={handleSendQuote}>
+              <Send className="h-3.5 w-3.5" />
+              Send Quote via{" "}
+              {deliveryChannel === "email"
+                ? "Email"
+                : deliveryChannel === "post"
+                  ? "Post"
+                  : "WhatsApp"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </CollapsiblePanel>
   );
 }

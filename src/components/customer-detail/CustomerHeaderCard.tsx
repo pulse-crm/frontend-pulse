@@ -40,9 +40,7 @@ function balanceTone(amount: number) {
 }
 
 function formatBalance(amount: number): string {
-  const abs = Math.abs(amount).toFixed(2);
-  if (amount === 0) return `£${abs}`;
-  return amount < 0 ? `£${abs} CR` : `£${abs}`;
+  return `£${Math.abs(amount).toFixed(2)}`;
 }
 
 function Stat({
@@ -117,11 +115,13 @@ export function CustomerHeaderCard({
                 {initial}
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold flex items-center gap-2 flex-wrap">
-                  <span className="truncate">{customer.name}</span>
-                  <StatusBadge status={customer.status} />
-                  <StatusBadge status={profileType} />
-                  <StatusBadge status={customer.type} />
+                <h1 className="text-lg font-bold flex items-center gap-2 min-w-0">
+                  <span className="truncate min-w-0">{customer.name}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={customer.status} />
+                    <StatusBadge status={profileType} />
+                    <StatusBadge status={customer.type} />
+                  </span>
                 </h1>
                 <p className="text-xs text-muted-foreground font-mono">{customer.accountNumber}</p>
               </div>

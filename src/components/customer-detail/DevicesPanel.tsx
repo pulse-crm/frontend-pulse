@@ -15,20 +15,35 @@ export function DevicesPanel({ data }: { data: Device[] }) {
       key: "device",
       header: "Device",
       render: (d) => (
-        <span className="font-medium text-primary underline-offset-2 hover:underline">{d.name}</span>
+        <span className="text-xs font-medium text-primary underline-offset-2 hover:underline">
+          {d.name}
+        </span>
       ),
     },
-    { key: "type", header: "Type", render: (d) => <span className="text-xs">{d.type}</span> },
+    {
+      key: "makemodel",
+      header: "Make / Model",
+      // Pulse devices have no separate make/model — surface type + serial as the
+      // closest equivalent to project-files' "Make Model" cell.
+      render: (d) => (
+        <span className="text-xs">
+          {d.type} <span className="font-mono text-muted-foreground">{d.serialNumber}</span>
+        </span>
+      ),
+    },
     { key: "status", header: "Status", render: (d) => <StatusBadge status={d.status} /> },
     {
-      key: "firmware",
-      header: "Firmware",
-      render: (d) => <span className="font-mono text-xs">{d.firmware}</span>,
+      key: "installment",
+      header: "Installment",
+      // No installment plan data in pulse mock.
+      render: () => <span className="text-xs font-mono">—</span>,
     },
     {
-      key: "lastSeen",
-      header: "Last Seen",
-      render: (d) => <span className="text-xs text-muted-foreground">{d.lastSeen}</span>,
+      key: "warranty",
+      header: "Warranty",
+      // No warranty-end data in pulse mock; show last-seen as the nearest
+      // available device-lifecycle signal.
+      render: (d) => <span className="text-xs">{d.lastSeen}</span>,
     },
   ];
 

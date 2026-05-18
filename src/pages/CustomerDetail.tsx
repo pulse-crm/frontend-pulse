@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -25,6 +24,15 @@ import { CreditScoringPanel } from "@/components/customer-detail/CreditScoringPa
 import { RetentionUpsellPanel } from "@/components/customer-detail/RetentionUpsellPanel";
 import { CommunicationsPanel } from "@/components/customer-detail/CommunicationsPanel";
 import { ActivityTimelinePanel } from "@/components/customer-detail/ActivityTimelinePanel";
+import { NewTicketDialog } from "@/components/customer-detail/NewTicketDialog";
+import { Textarea } from "@/components/ui/textarea/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog/dialog";
 import {
   customers,
   subscriptions,
@@ -35,6 +43,7 @@ import {
   payments,
   interactions,
   notes,
+  type Ticket,
 } from "@/data/mock";
 import { pushRecentCustomerId } from "@/lib/recent";
 import { useCustomerTags } from "@/lib/tags";
@@ -44,6 +53,11 @@ export default function CustomerDetail() {
   const navigate = useNavigate();
   const customer = customers.find((c) => c.id === id);
   const { getTagsForCustomer } = useCustomerTags();
+
+  const [newTicketOpen, setNewTicketOpen] = React.useState(false);
+  const [localTickets, setLocalTickets] = React.useState<Ticket[]>([]);
+  const [suspendOpen, setSuspendOpen] = React.useState(false);
+  const [suspendReason, setSuspendReason] = React.useState("");
 
   React.useEffect(() => {
     if (customer) pushRecentCustomerId(customer.id);
@@ -63,7 +77,10 @@ export default function CustomerDetail() {
   }
 
   const custSubs = subscriptions.filter((s) => s.customerId === customer.id);
-  const custTickets = tickets.filter((t) => t.customerId === customer.id);
+  const custTickets = [
+    ...tickets.filter((t) => t.customerId === customer.id),
+    ...localTickets,
+  ];
   const custOrders = orders.filter((o) => o.customerId === customer.id);
   const custInvoices = invoices.filter((i) => i.customer === customer.name);
   const custDevices = devices.filter((d) => d.customerId === customer.id);
@@ -93,19 +110,24 @@ export default function CustomerDetail() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <Button asChild variant="ghost" size="sm" className="gap-1">
-          <Link to="/" className="whitespace-nowrap">
-            <ArrowLeft className="h-4 w-4" /> Back to Search
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1 whitespace-nowrap"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Search
         </Button>
         <div className="flex items-center gap-2 flex-wrap">
         <Button
+          data-tour="customer-new-ticket-btn"
           size="sm"
-          onClick={() => toast({ title: "New Ticket", description: `Open a new ticket for ${customer.name}.` })}
+          onClick={() => setNewTicketOpen(true)}
         >
           <TicketPlus className="h-3.5 w-3.5" /> New Ticket
         </Button>
         <Button
+          data-tour="customer-take-payment-btn"
           size="sm"
           variant="outline"
           onClick={() => toast({ title: "Take Payment", description: `Processing payment for ${customer.name}…` })}
@@ -131,7 +153,10 @@ export default function CustomerDetail() {
             size="sm"
             variant="outline"
             className="text-destructive hover:text-destructive"
-            onClick={() => toast({ title: "Suspend", description: `Suspension requested for ${customer.name}.`, variant: "destructive" })}
+            onClick={() => {
+              setSuspendReason("");
+              setSuspendOpen(true);
+            }}
           >
             <PauseCircle className="h-3.5 w-3.5" /> Suspend
           </Button>
@@ -139,15 +164,17 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      <CustomerHeaderCard
-        customer={customer}
-        tags={tags}
-        healthScore={customer.health}
-        customerValue={customerValueScore}
-        customerValueLabel={customerValueLabel}
-        creditLimit={creditLimit}
-        outstandingBalance={outstandingBalance}
-      />
+      <div data-tour="customer-header">
+        <CustomerHeaderCard
+          customer={customer}
+          tags={tags}
+          healthScore={customer.health}
+          customerValue={customerValueScore}
+          customerValueLabel={customerValueLabel}
+          creditLimit={creditLimit}
+          outstandingBalance={outstandingBalance}
+        />
+      </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
@@ -161,10 +188,14 @@ export default function CustomerDetail() {
 
         <TabsContent value="overview" className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <SubscriptionsPanel data={custSubs} />
-          <TicketsPanel data={custTickets} />
+          <div data-tour="customer-tickets-panel" className="h-full">
+            <TicketsPanel data={custTickets} />
+          </div>
           <DevicesPanel data={custDevices} />
           <OrdersPanel data={custOrders} />
-          <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
+          <div data-tour="customer-invoices-panel" className="h-full">
+            <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
+          </div>
           <RetentionUpsellPanel customer={customer} subscriptions={custSubs} />
           <CommunicationsPanel customer={customer} />
           <ActivityTimelinePanel
@@ -207,6 +238,66 @@ export default function CustomerDetail() {
           <NotesPanel initial={custNotes} />
         </TabsContent>
       </Tabs>
+
+      <NewTicketDialog
+        open={newTicketOpen}
+        onOpenChange={setNewTicketOpen}
+        customer={customer}
+        customerServices={custSubs}
+        onTicketCreated={(t) => setLocalTickets((prev) => [...prev, t])}
+      />
+
+      <Dialog open={suspendOpen} onOpenChange={setSuspendOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Suspend Account</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Are you sure you want to suspend{" "}
+              <strong className="text-foreground">{customer.name}</strong>'s account? All services
+              will be paused.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Reason for suspension
+              </label>
+              <Textarea
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+                rows={3}
+                placeholder="Provide a reason..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => setSuspendOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="text-xs"
+              disabled={!suspendReason.trim()}
+              onClick={() => {
+                toast({
+                  title: "Account Suspended",
+                  description: `${customer.name}'s account has been suspended. Reason: ${suspendReason}`,
+                  variant: "destructive",
+                });
+                setSuspendOpen(false);
+              }}
+            >
+              Suspend Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

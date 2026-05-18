@@ -5,10 +5,11 @@ import { DataTable, type Column } from "@/components/ui/table/data-table";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs/tabs";
 import { Button } from "@/components/ui/button/button";
+import { Badge } from "@/components/ui/badge/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { InvoiceViewDialog } from "./InvoiceViewDialog";
 import { BillingAdjustDialog } from "./BillingAdjustDialog";
-import type { Invoice, Payment, BillingAdjustment, Discount } from "@/data/mock";
+import type { Invoice, Payment, BillingAdjustment } from "@/data/mock";
 import { billingAdjustments, discounts as allDiscounts } from "@/data/mock";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -100,39 +101,31 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
   ];
 
   const adjustmentColumns: Column<BillingAdjustment>[] = [
-    { key: "id", header: "Adjustment", render: (a) => <span className="font-mono text-xs">{a.id}</span> },
+    { key: "id", header: "ID", render: (a) => <span className="font-mono text-xs">{a.id}</span> },
+    {
+      key: "invoice",
+      header: "Invoice",
+      render: (a) => <span className="font-mono text-xs">{a.invoiceId}</span>,
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (a) => (
+        <Badge variant={a.type === "Credit" ? "default" : "secondary"} className="text-[10px]">
+          {a.type}
+        </Badge>
+      ),
+    },
     { key: "reason", header: "Reason", render: (a) => <span className="text-xs">{a.reason}</span> },
-    { key: "by", header: "Requested By", render: (a) => <span className="text-xs">{a.requestedBy}</span> },
-    { key: "status", header: "Status", render: (a) => <StatusBadge status={a.status} /> },
     {
       key: "amount",
       header: "Amount",
       align: "right",
       render: (a) => (
-        <span className={cn("font-mono text-xs", a.amount < 0 ? "text-success" : "text-destructive")}>
-          {a.amount < 0 ? "−" : "+"}
-          {formatCurrency(Math.abs(a.amount))}
-        </span>
+        <span className="font-mono text-xs">£{Math.abs(a.amount).toFixed(2)}</span>
       ),
     },
-    { key: "when", header: "Submitted", render: (a) => <span className="text-xs text-muted-foreground">{a.submittedAt}</span> },
-  ];
-
-  const discountColumns: Column<Discount>[] = [
-    { key: "code", header: "Discount", render: (d) => <span className="font-medium text-xs">{d.code}</span> },
-    { key: "desc", header: "Description", render: (d) => <span className="text-xs">{d.description}</span> },
-    { key: "type", header: "Type", render: (d) => <span className="text-xs">{d.type}</span> },
-    {
-      key: "value",
-      header: "Value",
-      render: (d) => (
-        <span className="font-mono text-xs">
-          {d.type === "Percentage" ? `${d.value}%` : formatCurrency(d.value)}
-        </span>
-      ),
-    },
-    { key: "status", header: "Status", render: (d) => <StatusBadge status={d.status} /> },
-    { key: "expires", header: "Expires", render: (d) => <span className="text-xs">{formatDate(d.expiresAt)}</span> },
+    { key: "status", header: "Status", render: (a) => <StatusBadge status={a.status} /> },
   ];
 
   return (
@@ -190,10 +183,8 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
                             )
                           ) : null}
                         </TableCell>
-                        <TableCell className="py-2 font-mono text-xs">{i.id}</TableCell>
-                        <TableCell className="py-2 text-xs text-muted-foreground">
-                          {formatDate(i.issueDate)} → {formatDate(i.dueDate)}
-                        </TableCell>
+                        <TableCell className="font-mono text-xs py-2">{i.id}</TableCell>
+                        <TableCell className="text-xs py-2">{formatDate(i.issueDate)}</TableCell>
                         <TableCell className="py-2">
                           <StatusBadge status={i.status} />
                         </TableCell>
@@ -241,20 +232,20 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
                         ) : (
                           invPayments.map((p) => (
                             <TableRow key={p.id} className="bg-muted/30">
-                              <TableCell />
-                              <TableCell colSpan={2} className="py-1.5 text-xs text-muted-foreground">
-                                {p.method} · <span className="font-mono">{p.id}</span>
+                              <TableCell className="py-1.5" />
+                              <TableCell colSpan={2} className="text-xs py-1.5 text-muted-foreground">
+                                {p.method} — <span className="font-mono">{p.id}</span>
                               </TableCell>
                               <TableCell className="py-1.5">
                                 <StatusBadge status="Paid" />
                               </TableCell>
-                              <TableCell className="py-1.5 text-right font-mono text-xs text-muted-foreground">
+                              <TableCell className="text-xs py-1.5 text-right font-mono text-muted-foreground">
                                 {formatCurrency(p.amount)}
                               </TableCell>
-                              <TableCell className="py-1.5 text-xs text-muted-foreground">
+                              <TableCell className="text-xs py-1.5 text-muted-foreground">
                                 {formatDate(p.paidAt)}
                               </TableCell>
-                              <TableCell />
+                              <TableCell className="py-1.5" />
                             </TableRow>
                           ))
                         ))}
@@ -264,17 +255,43 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
               </TableBody>
             </Table>
 
-            <div className="border-t border-border pt-3">
-              <p className="text-xs font-semibold flex items-center gap-1.5 mb-2 px-1">
-                <Tag className="h-3.5 w-3.5 text-success" /> Discounts & Promotions
-              </p>
-              <DataTable
-                columns={discountColumns}
-                data={allDiscounts}
-                getRowKey={(d) => d.id}
-                emptyMessage="No active promotions"
-              />
-            </div>
+            {allDiscounts.length > 0 && (
+              <div className="border-t border-border">
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-success" /> Discounts & Promotions
+                  </p>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <tr>
+                      <TableHead className="text-xs">Discount</TableHead>
+                      <TableHead className="text-xs">Type</TableHead>
+                      <TableHead className="text-xs">Value</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs">Period</TableHead>
+                      <TableHead className="text-xs">Applies To</TableHead>
+                    </tr>
+                  </TableHeader>
+                  <TableBody>
+                    {allDiscounts.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="font-medium text-xs py-2">{d.code}</TableCell>
+                        <TableCell className="text-xs py-2">{d.type}</TableCell>
+                        <TableCell className="font-mono text-xs py-2">
+                          {d.type === "Percentage" ? `${d.value}%` : formatCurrency(d.value)}
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <StatusBadge status={d.status === "Expired" ? "Ended" : d.status} />
+                        </TableCell>
+                        <TableCell className="text-xs py-2">→ {formatDate(d.expiresAt)}</TableCell>
+                        <TableCell className="text-xs py-2">{d.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="collections" className="mt-2">

@@ -36,6 +36,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Separator } from "@/components/ui/separator/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog/dialog";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { useSidebar } from "./sidebar-context";
+import { customers } from "@/data/mock";
 
 interface NavItem {
   title: string;
@@ -133,6 +135,12 @@ function AboutDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
 export function AppSidebar() {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const location = useLocation();
+  const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
+
+  // Close the mobile drawer whenever the route changes.
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, setMobileOpen]);
 
   const getInitialOpenState = React.useCallback(() => {
     const open: Record<string, boolean> = {};
@@ -158,7 +166,25 @@ export function AppSidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border min-h-screen">
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={cn(
+          "flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-hidden transition-transform duration-200 ease-in-out",
+          // Mobile: fixed off-canvas drawer
+          "fixed inset-y-0 left-0 z-50 w-64 max-w-[80vw]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop: static, collapsible by width
+          "md:static md:translate-x-0 md:min-h-screen md:shrink-0 md:transition-[width]",
+          collapsed ? "md:w-0 md:border-r-0" : "md:w-64"
+        )}
+      >
         {/* Header */}
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2 w-full">
@@ -231,10 +257,10 @@ export function AppSidebar() {
               <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200" />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-0.5 pt-1">
-              {["Acme Corp", "Globex Industries", "Initech LLC"].map((name) => (
+              {customers.slice(0, 3).map((c) => (
                 <NavLink
-                  key={name}
-                  to={`/customer/${name.toLowerCase().replace(/\s+/g, "-")}`}
+                  key={c.id}
+                  to={`/customer/${c.id}`}
                   className={({ isActive }) =>
                     cn(
                       "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
@@ -245,7 +271,7 @@ export function AppSidebar() {
                   }
                 >
                   <Users className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{name}</span>
+                  <span className="truncate">{c.name}</span>
                 </NavLink>
               ))}
             </CollapsibleContent>

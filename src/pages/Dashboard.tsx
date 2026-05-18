@@ -196,8 +196,8 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/customers")}>
+      <div data-tour="dashboard-kpi-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card data-tour="dashboard-subscribers-card" className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/customers")}>
           <CardContent className="p-5">
             <div>
               <div className="flex items-center gap-1.5">
@@ -268,7 +268,7 @@ export default function Dashboard() {
       </div>
 
       <Tabs defaultValue="customer-base" className="space-y-4">
-        <TabsList>
+        <TabsList data-tour="dashboard-tabs">
           <TabsTrigger value="customer-base" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />Customer Base
           </TabsTrigger>
@@ -282,7 +282,7 @@ export default function Dashboard() {
 
         <TabsContent value="customer-base" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card>
+            <Card data-tour="dashboard-ticket-volume">
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-medium">Ticket Volume</CardTitle>
                 <div className="flex gap-1">
@@ -304,7 +304,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card data-tour="dashboard-revenue-trend">
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-medium">Revenue Trend</CardTitle>
                 <div className="flex gap-1">

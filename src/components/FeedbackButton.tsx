@@ -65,11 +65,19 @@ interface StoredEntry {
   status: "pending" | "resolved";
 }
 
+const SEED_ENTRIES: StoredEntry[] = [
+  { id: "F-seed-1", page: "/dashboard", pageName: "Dashboard", category: "Suggestion", rating: 4, comment: "Add a 90-day trend toggle to the churn breakdown.", userName: "Sarah Chen", createdAt: "2026-05-17T09:14:00Z", status: "pending" },
+  { id: "F-seed-2", page: "/tickets", pageName: "Tickets", category: "Bug", rating: 2, comment: "Bulk-assign dialog closes before the toast confirms.", userName: "Marcus Lee", createdAt: "2026-05-17T11:02:00Z", status: "pending" },
+  { id: "F-seed-3", page: "/billing", pageName: "Billing", category: "Question", rating: null, comment: "How are pro-rata refunds calculated for mid-cycle downgrades?", userName: "Priya Patel", createdAt: "2026-05-16T15:48:00Z", status: "pending" },
+];
+
 function loadEntries(): StoredEntry[] {
   try {
-    return JSON.parse(localStorage.getItem(FEEDBACK_STORE_KEY) || "[]");
+    const raw = localStorage.getItem(FEEDBACK_STORE_KEY);
+    if (raw === null) return SEED_ENTRIES;
+    return JSON.parse(raw);
   } catch {
-    return [];
+    return SEED_ENTRIES;
   }
 }
 
