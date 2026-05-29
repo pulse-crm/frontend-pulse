@@ -50,17 +50,20 @@ import { useCustomerTags } from "@/lib/tags";
 import { Spinner } from "@/components/ui/spinner/spinner";
 import { useCustomerDetail } from "@/lib/api/useCustomerDetail";
 import { detailToCustomer, detailToSubscriptions, detailToNotes, detailToInvoices, outstandingFromBilling, pickRenewableContract } from "@/lib/api/customerDetail";
+import { changeAccountStatus } from "@/lib/api/accounts";
+import { friendlyMessage } from "@/lib/api/errors";
 
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getTagsForCustomer } = useCustomerTags();
-  const { detail, loading } = useCustomerDetail(id);
+  const { detail, loading, reload } = useCustomerDetail(id);
 
   const [newTicketOpen, setNewTicketOpen] = React.useState(false);
   const [localTickets, setLocalTickets] = React.useState<Ticket[]>([]);
   const [suspendOpen, setSuspendOpen] = React.useState(false);
   const [suspendReason, setSuspendReason] = React.useState("");
+  const [suspending, setSuspending] = React.useState(false);
 
   // Live customer from the API; fall back to the built-in demo dataset for the
   // sample customers (or if the service is unreachable).
@@ -132,6 +135,36 @@ export default function CustomerDetail() {
   const outstandingBalance =
     isLive && detail ? outstandingFromBilling(detail) : unpaidTotal - Math.max(0, paymentsTotal - paidTotal);
   const creditLimit = customer.creditScore * 10;
+
+  // Suspend the account via the real C1 status endpoint when we have a live
+  // account id; otherwise (demo/fallback customer) keep the simulated action.
+  const handleSuspend = async () => {
+    const accountId = detail?.account?.accountId;
+    if (!accountId) {
+      toast({
+        title: "Account Suspended",
+        description: `${customer.name}'s account has been suspended (demo). Reason: ${suspendReason}`,
+        variant: "destructive",
+      });
+      setSuspendOpen(false);
+      return;
+    }
+    setSuspending(true);
+    try {
+      await changeAccountStatus(accountId, { newStatus: "SUSPENDED", reasonCode: suspendReason.trim() });
+      toast({
+        title: "Account suspended",
+        description: `${customer.name}'s account is now suspended.`,
+        variant: "destructive",
+      });
+      setSuspendOpen(false);
+      reload(); // refresh status badge + lifecycle from the API
+    } catch (err) {
+      toast({ title: "Could not suspend account", description: friendlyMessage(err), variant: "destructive" });
+    } finally {
+      setSuspending(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -309,17 +342,10 @@ export default function CustomerDetail() {
               variant="destructive"
               size="sm"
               className="text-xs"
-              disabled={!suspendReason.trim()}
-              onClick={() => {
-                toast({
-                  title: "Account Suspended",
-                  description: `${customer.name}'s account has been suspended. Reason: ${suspendReason}`,
-                  variant: "destructive",
-                });
-                setSuspendOpen(false);
-              }}
+              disabled={!suspendReason.trim() || suspending}
+              onClick={handleSuspend}
             >
-              Suspend Account
+              {suspending ? "Suspending…" : "Suspend Account"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -43,4 +43,7 @@ export const endpoints = {
 
   /** CAM immutable audit log (Ground Rules I §6.3). */
   audit: "/audit",
+
+  /** Account status change (suspend/reactivate/close) — Customer Account C1. */
+  accountStatus: (id: string) => `/accounts/${encodeURIComponent(id)}/status`,
 } as const;

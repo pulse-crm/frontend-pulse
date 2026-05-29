@@ -12,15 +12,19 @@ export interface CustomerDetailState {
   notFound: boolean;
   /** Service unreachable / internal error (vs a genuine 404). */
   unavailable: boolean;
+  /** Re-fetch the aggregate (e.g. after a write action). */
+  reload: () => void;
 }
 
 export function useCustomerDetail(id: string | undefined): CustomerDetailState {
-  const [state, setState] = React.useState<CustomerDetailState>({
+  const [state, setState] = React.useState<Omit<CustomerDetailState, "reload">>({
     detail: null,
     loading: Boolean(id),
     notFound: false,
     unavailable: false,
   });
+  const [reloadKey, setReloadKey] = React.useState(0);
+  const reload = React.useCallback(() => setReloadKey((k) => k + 1), []);
 
   React.useEffect(() => {
     if (!id) return;
@@ -45,7 +49,7 @@ export function useCustomerDetail(id: string | undefined): CustomerDetailState {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
-  return state;
+  return { ...state, reload };
 }
