@@ -49,7 +49,7 @@ import { recordRecentlyViewed } from "@/lib/recent";
 import { useCustomerTags } from "@/lib/tags";
 import { Spinner } from "@/components/ui/spinner/spinner";
 import { useCustomerDetail } from "@/lib/api/useCustomerDetail";
-import { detailToCustomer, detailToSubscriptions, detailToNotes, pickRenewableContract } from "@/lib/api/customerDetail";
+import { detailToCustomer, detailToSubscriptions, detailToNotes, detailToInvoices, outstandingFromBilling, pickRenewableContract } from "@/lib/api/customerDetail";
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -108,7 +108,7 @@ export default function CustomerDetail() {
     ...localTickets,
   ];
   const custOrders = isLive ? [] : orders.filter((o) => o.customerId === customer.id);
-  const custInvoices = isLive ? [] : invoices.filter((i) => i.customer === customer.name);
+  const custInvoices = isLive ? (detail ? detailToInvoices(detail) : []) : invoices.filter((i) => i.customer === customer.name);
   const custDevices = isLive ? [] : devices.filter((d) => d.customerId === customer.id);
   const custPayments = isLive ? [] : payments.filter((p) => p.customerId === customer.id);
   const custInteractions = isLive ? [] : interactions.filter((i) => i.customerId === customer.id);
@@ -129,7 +129,8 @@ export default function CustomerDetail() {
   const unpaidTotal = custInvoices.filter((i) => i.status !== "Paid").reduce((sum, i) => sum + i.amount, 0);
   const paymentsTotal = custPayments.reduce((sum, p) => sum + p.amount, 0);
   const paidTotal = custInvoices.filter((i) => i.status === "Paid").reduce((sum, i) => sum + i.amount, 0);
-  const outstandingBalance = unpaidTotal - Math.max(0, paymentsTotal - paidTotal);
+  const outstandingBalance =
+    isLive && detail ? outstandingFromBilling(detail) : unpaidTotal - Math.max(0, paymentsTotal - paidTotal);
   const creditLimit = customer.creditScore * 10;
 
   return (

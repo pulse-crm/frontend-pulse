@@ -13,6 +13,7 @@ import type {
   ContractStatus,
   Subscription,
   Note,
+  Invoice,
 } from "@/data/mock";
 
 export interface CustomerDetail {
@@ -53,6 +54,19 @@ export interface CustomerDetail {
   lifecycleState: string | null;
   notes: Array<{ id: string; authorId: string; category: string; body: string; pinned: boolean; createdAt: string }>;
   consent: Array<{ category: string; channel: string; state: string; occurredAt: string }>;
+  billing: {
+    balanceAmount: number;
+    balanceStatus: string;
+    currency: string;
+    paymentMethodType: string | null;
+    paymentMethodLast4: string | null;
+    lastInvoiceAt: string | null;
+    nextBillingCycleAt: string | null;
+    recentInvoices: Array<{
+      externalInvoiceId: string; invoicedAt: string; amount: number; currency: string;
+      statusLabel: string; summary: string | null;
+    }>;
+  } | null;
   partial: boolean;
 }
 
@@ -129,6 +143,29 @@ export function detailToSubscriptions(d: CustomerDetail): Subscription[] {
     status: SUB_LABEL_TO_STATUS[s.statusLabel?.toUpperCase()] ?? "Active",
   }));
   return [...fromContracts, ...fromSubs];
+}
+
+const INVOICE_STATUS: Record<string, Invoice["status"]> = {
+  paid: "Paid", due: "Pending", overdue: "Overdue", disputed: "Overdue",
+};
+
+/** Invoices for the Billing panel, from the C7 billing read-cache. */
+export function detailToInvoices(d: CustomerDetail): Invoice[] {
+  if (!d.billing) return [];
+  const name = d.preferredName?.trim() || `${d.givenName} ${d.familyName}`.trim();
+  return d.billing.recentInvoices.map((inv) => ({
+    id: inv.externalInvoiceId,
+    customer: name,
+    amount: inv.amount,
+    status: INVOICE_STATUS[inv.statusLabel?.toLowerCase()] ?? "Pending",
+    issueDate: inv.invoicedAt.slice(0, 10),
+    dueDate: inv.invoicedAt.slice(0, 10),
+  }));
+}
+
+/** Outstanding balance from the billing read-cache (0 if in credit / no billing). */
+export function outstandingFromBilling(d: CustomerDetail): number {
+  return d.billing && d.billing.balanceAmount > 0 ? d.billing.balanceAmount : 0;
 }
 
 export function detailToNotes(d: CustomerDetail): Note[] {
