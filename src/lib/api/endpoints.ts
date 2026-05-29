@@ -36,4 +36,11 @@ export const endpoints = {
   /** Dashboard analytics — CAM-owned slices (Customer 360, C8). */
   dashboardCustomerBase: "/dashboard/customer-base",
   dashboardAgentWorkload: "/dashboard/agent-workload",
+
+  /** Read-only catalogue of RBAC permissions CAM enforces (Customer 360, C8).
+   *  Identity/user management itself is the Keycloak/IAM domain — not CAM. */
+  accessPermissions: "/access/permissions",
+
+  /** CAM immutable audit log (Ground Rules I §6.3). */
+  audit: "/audit",
 } as const;

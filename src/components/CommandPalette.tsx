@@ -71,7 +71,7 @@ export function CommandPalette() {
         return;
       }
 
-      // Sequence shortcuts must not fire while typing or with modifiers held.
+      // Sequence shortcuts must not fire while typing or with modifiers held.https://gitlab.get.netline.net.uk/pulse/pulse-frontend.git
       if (inField || e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "g" || e.key === "G") {

@@ -66,6 +66,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar/avatar";
 import { toast } from "@/components/ui/toast/toaster";
 import { cn } from "@/lib/cn";
+import { useAccessPermissions } from "@/lib/api/access";
 
 type Role = "Admin" | "Supervisor" | "Agent";
 type LiveStatus = "available" | "busy" | "away" | "dnd" | "offline";
@@ -295,6 +296,8 @@ export default function UserManagement() {
 
   const getDisplayedLiveStatus = (u: AppUser): LiveStatus => u.liveStatus ?? "offline";
 
+  const { permissions: camPermissions } = useAccessPermissions();
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -304,6 +307,48 @@ export default function UserManagement() {
         </div>
         <Badge variant="outline" className="text-xs">Logged in as: {currentRole}</Badge>
       </div>
+
+      {/* Identity is owned by Keycloak/IAM — user creation + role assignment here
+          are foreign (demo). The Platform Permissions list below is the real,
+          CAM-enforced permission catalogue (read-only). */}
+      <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground">
+        <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <span>
+          User accounts &amp; role assignment are owned by <strong className="text-foreground">Identity &amp; Access (Keycloak)</strong> — shown here as demo.
+          The <strong className="text-foreground">Platform Permissions</strong> below are the live permissions the CAM service actually enforces.
+        </span>
+      </div>
+
+      {/* Platform Permissions — live from CAM (read-only catalogue of enforced RBAC). */}
+      {camPermissions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Shield className="h-4 w-4 text-primary" />
+              Platform Permissions
+              <Badge tone="success" className="text-[10px] ml-1">Live · CAM</Badge>
+              <Badge variant="outline" className="text-[10px]">{camPermissions.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {camPermissions.map((p) => (
+                <div key={p.key} className="flex items-start gap-2 p-2 rounded-md border border-border">
+                  <ShieldCheck className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium">{p.label}</span>
+                      <code className="text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded">{p.key}</code>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{p.description}</p>
+                    <p className="text-[10px] text-muted-foreground/70">{p.capability}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Role summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

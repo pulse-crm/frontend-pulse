@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button/button";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { toast } from "@/components/ui/toast/toaster";
 import { downloadCsv, type CsvColumn } from "@/lib/csv";
+import { fetchAuditLog } from "@/lib/api/audit";
 import {
   Search,
   Filter,
@@ -152,17 +153,30 @@ export default function AuditLog() {
   const [loginSearch, setLoginSearch] = React.useState("");
   const [loginOutcome, setLoginOutcome] = React.useState<string>("all");
 
+  // Live CAM audit log; falls back to demo data if the service is unreachable.
+  const [liveAudit, setLiveAudit] = React.useState<AuditEntry[] | null>(null);
+  React.useEffect(() => {
+    const controller = new AbortController();
+    fetchAuditLog(controller.signal)
+      .then((rows) => setLiveAudit(rows))
+      .catch(() => {
+        /* keep demo data */
+      });
+    return () => controller.abort();
+  }, []);
+  const auditEntries = liveAudit ?? auditLog;
+
   const entities = React.useMemo(
-    () => [...new Set(auditLog.map((a) => a.entity))].sort(),
-    []
+    () => [...new Set(auditEntries.map((a) => a.entity))].sort(),
+    [auditEntries]
   );
   const actions = React.useMemo(
-    () => [...new Set(auditLog.map((a) => a.action))].sort(),
-    []
+    () => [...new Set(auditEntries.map((a) => a.action))].sort(),
+    [auditEntries]
   );
 
   const filtered = React.useMemo(() => {
-    return auditLog
+    return auditEntries
       .filter((a) => {
         if (entityFilter !== "All Entities" && a.entity !== entityFilter) return false;
         if (actionFilter !== "All Actions" && a.action !== actionFilter) return false;
@@ -180,7 +194,7 @@ export default function AuditLog() {
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-  }, [entityFilter, actionFilter, searchQuery]);
+  }, [auditEntries, entityFilter, actionFilter, searchQuery]);
 
   const flaggedEmails = React.useMemo(
     () => detectAnomalies(loginAttempts),
@@ -413,6 +427,10 @@ export default function AuditLog() {
 
         {/* ── Login Attempts Tab ── */}
         <TabsContent value="logins" className="space-y-4">
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground">
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+            Authentication / login attempts are owned by Identity &amp; Access (Keycloak) — shown here as demo. The Activity Log tab is the live CAM audit.
+          </div>
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
