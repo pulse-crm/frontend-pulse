@@ -1,4 +1,5 @@
 import * as React from "react";
+import { listTags, createTag } from "./api/filters";
 
 export interface CustomerTag {
   id: string;
@@ -66,6 +67,25 @@ export function useCustomerTags() {
     };
   }, []);
 
+  // The tag catalogue is owned by the API; load it on mount and cache locally so
+  // the UI is instant next time and still works offline.
+  React.useEffect(() => {
+    let active = true;
+    listTags()
+      .then((apiTags) => {
+        if (active && apiTags.length > 0) {
+          setTags(apiTags);
+          save(TAGS_KEY, apiTags);
+        }
+      })
+      .catch(() => {
+        /* keep cached / default catalogue */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const getTagsForCustomer = React.useCallback(
     (customerId: string): CustomerTag[] => {
       const ids = assignments[customerId] ?? [];
@@ -74,14 +94,28 @@ export function useCustomerTags() {
     [tags, assignments]
   );
 
-  const addTag = React.useCallback(
-    (tag: CustomerTag) => {
-      const next = [...tags.filter((t) => t.id !== tag.id), tag];
-      setTags(next);
-      save(TAGS_KEY, next);
-    },
-    [tags]
-  );
+  // Create a tag via the API (persisted, server-derived slug+colour). Falls back
+  // to a local add if the service is unreachable so the console stays usable.
+  const addTag = React.useCallback(async (label: string): Promise<CustomerTag> => {
+    const apply = (tag: CustomerTag) =>
+      setTags((prev) => {
+        const next = [...prev.filter((t) => t.id !== tag.id), tag];
+        save(TAGS_KEY, next);
+        return next;
+      });
+    try {
+      const tag = await createTag(label);
+      apply(tag);
+      return tag;
+    } catch {
+      const id = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      let hash = 0;
+      for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 360;
+      const tag: CustomerTag = { id, label: label.trim(), color: `hsl(${hash} 65% 45%)` };
+      apply(tag);
+      return tag;
+    }
+  }, []);
 
   const assignTag = React.useCallback(
     (customerId: string, tagId: string) => {

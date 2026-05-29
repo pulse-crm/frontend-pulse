@@ -45,23 +45,44 @@ import {
   notes,
   type Ticket,
 } from "@/data/mock";
-import { pushRecentCustomerId } from "@/lib/recent";
+import { recordRecentlyViewed } from "@/lib/recent";
 import { useCustomerTags } from "@/lib/tags";
+import { Spinner } from "@/components/ui/spinner/spinner";
+import { useCustomerDetail } from "@/lib/api/useCustomerDetail";
+import { detailToCustomer, detailToSubscriptions, detailToNotes, pickRenewableContract } from "@/lib/api/customerDetail";
 
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const customer = customers.find((c) => c.id === id);
   const { getTagsForCustomer } = useCustomerTags();
+  const { detail, loading } = useCustomerDetail(id);
 
   const [newTicketOpen, setNewTicketOpen] = React.useState(false);
   const [localTickets, setLocalTickets] = React.useState<Ticket[]>([]);
   const [suspendOpen, setSuspendOpen] = React.useState(false);
   const [suspendReason, setSuspendReason] = React.useState("");
 
+  // Live customer from the API; fall back to the built-in demo dataset for the
+  // sample customers (or if the service is unreachable).
+  const liveCustomer = detail ? detailToCustomer(detail) : undefined;
+  const customer = liveCustomer ?? customers.find((c) => c.id === id);
+  const isLive = Boolean(detail);
+  // The CAM-owned retention action targets the customer's active contract.
+  const renewableContract = isLive && detail ? pickRenewableContract(detail) : null;
+  const customerId = customer?.id;
+
   React.useEffect(() => {
-    if (customer) pushRecentCustomerId(customer.id);
-  }, [customer]);
+    if (customerId) void recordRecentlyViewed(customerId);
+  }, [customerId]);
+
+  if (loading && !customer) {
+    return (
+      <div className="page-stack max-w-3xl mx-auto py-16 flex flex-col items-center gap-3">
+        <Spinner size="lg" />
+        <p className="text-sm text-muted-foreground">Loading customer…</p>
+      </div>
+    );
+  }
 
   if (!customer) {
     return (
@@ -76,17 +97,21 @@ export default function CustomerDetail() {
     );
   }
 
-  const custSubs = subscriptions.filter((s) => s.customerId === customer.id);
+  // Live: CAM-owned data from the API (services from C9 contracts / C7 subs;
+  // notes from the account). Foreign domains — tickets (Care), orders/devices
+  // (Fulfilment), invoices/payments (Revenue), interactions (Comms) — are not
+  // part of CAM, so they are empty for live customers. Fallback uses demo data.
+  const custSubs = isLive && detail ? detailToSubscriptions(detail) : subscriptions.filter((s) => s.customerId === customer.id);
+  const custNotes = isLive && detail ? detailToNotes(detail) : notes.filter((n) => n.customerId === customer.id);
   const custTickets = [
-    ...tickets.filter((t) => t.customerId === customer.id),
+    ...(isLive ? [] : tickets.filter((t) => t.customerId === customer.id)),
     ...localTickets,
   ];
-  const custOrders = orders.filter((o) => o.customerId === customer.id);
-  const custInvoices = invoices.filter((i) => i.customer === customer.name);
-  const custDevices = devices.filter((d) => d.customerId === customer.id);
-  const custPayments = payments.filter((p) => p.customerId === customer.id);
-  const custInteractions = interactions.filter((i) => i.customerId === customer.id);
-  const custNotes = notes.filter((n) => n.customerId === customer.id);
+  const custOrders = isLive ? [] : orders.filter((o) => o.customerId === customer.id);
+  const custInvoices = isLive ? [] : invoices.filter((i) => i.customer === customer.name);
+  const custDevices = isLive ? [] : devices.filter((d) => d.customerId === customer.id);
+  const custPayments = isLive ? [] : payments.filter((p) => p.customerId === customer.id);
+  const custInteractions = isLive ? [] : interactions.filter((i) => i.customerId === customer.id);
 
   const tags = getTagsForCustomer(customer.id);
 
@@ -196,7 +221,7 @@ export default function CustomerDetail() {
           <div data-tour="customer-invoices-panel" className="h-full">
             <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
           </div>
-          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} />
+          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} />
           <CommunicationsPanel customer={customer} />
           <ActivityTimelinePanel
             interactions={custInteractions}
@@ -223,7 +248,7 @@ export default function CustomerDetail() {
 
         <TabsContent value="billing" className="space-y-3">
           <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
-          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} />
+          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} />
           <CreditScoringPanel customer={customer} invoices={custInvoices} payments={custPayments} outstandingBalance={outstandingBalance} />
         </TabsContent>
 

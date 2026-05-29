@@ -49,6 +49,7 @@ import { TicketDashboardDialog } from "@/components/TicketDashboardDialog";
 import { RevenueDashboardDialog } from "@/components/RevenueDashboardDialog";
 import { customers, tickets, invoices, assignmentTeams } from "@/data/mock";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
+import { useDashboard, type AgentWorkloadRow } from "@/lib/api/dashboard";
 
 type Period = "weekly" | "monthly" | "yearly";
 
@@ -181,7 +182,22 @@ export default function Dashboard() {
   const [ticketDashOpen, setTicketDashOpen] = React.useState(false);
   const [revenueDashOpen, setRevenueDashOpen] = React.useState(false);
 
-  const activeCustomers = customers.filter((c) => c.status === "Active").length;
+  const { customerBase, agentWorkload } = useDashboard();
+
+  // CAM-owned, live where available; demo data is the fallback.
+  const activeCustomers = customerBase?.activeSubscribers ?? customers.filter((c) => c.status === "Active").length;
+  const segmentRows =
+    customerBase?.bySegment && customerBase.bySegment.length > 0
+      ? customerBase.bySegment.map((s) => ({ segment: s.label, count: s.count, pct: s.pct }))
+      : segmentData;
+  const growthRows =
+    customerBase?.netGrowth && customerBase.netGrowth.length > 0 ? customerBase.netGrowth : customerGrowth;
+  // Live CAM breakdowns (rendered only when the API responded).
+  const statusRows = customerBase?.byStatus ?? [];
+  const typeRows = customerBase?.byType ?? [];
+  const brandRows = customerBase?.byBrand ?? [];
+  const totalCustomers = customerBase?.totalCustomers ?? customers.length;
+
   const openTickets = tickets.filter((t) => t.status === "Open" || t.status === "Escalated").length;
   const overdueInvoices = invoices.filter((i) => i.status === "Overdue");
   const revenueMTD = invoices.filter((i) => i.issueDate.startsWith("2026-05")).reduce((s, i) => s + i.amount, 0);
@@ -206,9 +222,9 @@ export default function Dashboard() {
                   <Users className="h-3 w-3 text-primary" />
                 </div>
               </div>
-              <p className="text-3xl font-bold mt-1">{activeCustomers}</p>
-              <div className="flex items-center gap-1 mt-1 text-xs text-success">
-                <TrendingUp className="h-3 w-3" />+2.4% vs last month
+              <p className="text-3xl font-bold mt-1">{activeCustomers.toLocaleString()}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />{totalCustomers.toLocaleString()} total customers
               </div>
             </div>
           </CardContent>
@@ -374,9 +390,9 @@ export default function Dashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Net Subscriber Growth</CardTitle></CardHeader>
               <CardContent>
                 <BarChart
-                  data={customerGrowth}
+                  data={growthRows}
                   height={180}
-                  formatValue={(v) => `${(v / 1000).toFixed(0)}k`}
+                  formatValue={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)}
                 />
               </CardContent>
             </Card>
@@ -384,7 +400,7 @@ export default function Dashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Subscriber Segments</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {segmentData.map((s) => (
+                  {segmentRows.map((s) => (
                     <div key={s.segment} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">{s.segment}</span>
@@ -397,13 +413,50 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {customerBase && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {([
+                { title: "Accounts by Status", rows: statusRows },
+                { title: "Customer Type", rows: typeRows },
+                { title: "Accounts by Brand", rows: brandRows },
+              ] as const).map((card) => (
+                <Card key={card.title}>
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                    <Badge tone="success" className="text-[10px]">Live · CAM</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {card.rows.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No data.</p>
+                      )}
+                      {card.rows.map((s) => (
+                        <div key={s.label} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium">{s.label}</span>
+                            <span className="text-muted-foreground">{s.count.toLocaleString()} ({s.pct}%)</span>
+                          </div>
+                          <Progress value={Math.max(s.pct, 2)} />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="agent-workload" className="space-y-4">
-          <AgentWorkloadSection />
+          <AgentWorkloadSection workload={agentWorkload} />
         </TabsContent>
 
         <TabsContent value="surveys-csat" className="space-y-4">
+          <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            Surveys, CSAT, NPS &amp; sentiment are owned by the Insight/Survey domain — not CAM. Shown here as demo data.
+          </div>
           {/* CSAT & NPS KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
@@ -589,7 +642,7 @@ const initialAgents: AgentRow[] = [
   { name: "Aiden Park", availability: "Offline", currentLoad: 0, maxLoad: 14, skills: ["Billing", "SMB"] },
 ];
 
-function AgentWorkloadSection() {
+function AgentWorkloadSection({ workload }: { workload: AgentWorkloadRow[] | null }) {
   const [agents, setAgents] = React.useState<AgentRow[]>(initialAgents);
   const [reassignFrom, setReassignFrom] = React.useState("");
   const [reassignTo, setReassignTo] = React.useState("");
@@ -670,12 +723,59 @@ function AgentWorkloadSection() {
 
   return (
     <>
+    {workload && workload.length > 0 && (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Customer-Management Workload
+            <Badge tone="success" className="text-[10px] ml-1">Live · CAM</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-1.5 pr-2 font-medium">Agent</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Accounts</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Notes</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Discounts</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Lifecycle</th>
+                  <th className="py-1.5 px-2 font-medium text-right">Views</th>
+                  <th className="py-1.5 pl-2 font-medium text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workload.map((a) => (
+                  <tr key={a.agent} className="border-b border-border/50 last:border-0">
+                    <td className="py-1.5 pr-2 font-mono truncate max-w-[180px]" title={a.agent}>
+                      {a.agent.length > 18 ? `${a.agent.slice(0, 18)}…` : a.agent}
+                    </td>
+                    <td className="py-1.5 px-2 text-right">{a.accountsCreated}</td>
+                    <td className="py-1.5 px-2 text-right">{a.notesAuthored}</td>
+                    <td className="py-1.5 px-2 text-right">{a.discountsApplied}</td>
+                    <td className="py-1.5 px-2 text-right">{a.lifecycleChanges}</td>
+                    <td className="py-1.5 px-2 text-right">{a.recentViews}</td>
+                    <td className="py-1.5 pl-2 text-right font-semibold">{a.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Customer-management actions recorded by CAM (accounts, notes, discounts, lifecycle, views).
+            Ticket/case workload below is owned by the Care domain.
+          </p>
+        </CardContent>
+      </Card>
+    )}
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
           Agent Workload
-          <Badge variant="outline" className="text-[10px] ml-1">Supervisor View</Badge>
+          <Badge variant="outline" className="text-[10px] ml-1">Care · demo</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

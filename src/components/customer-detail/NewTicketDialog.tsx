@@ -4,7 +4,6 @@ import {
   Phone,
   Mail,
   Globe,
-  MessageSquare,
   Bot,
   Zap,
   Users,

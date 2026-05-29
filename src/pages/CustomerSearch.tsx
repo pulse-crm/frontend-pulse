@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge/badge";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs/tabs";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import { Spinner } from "@/components/ui/spinner/spinner";
 import { NewCustomerWizard } from "@/components/NewCustomerWizard";
 
 import { CustomerMergeDialog } from "@/components/customer-search/CustomerMergeDialog";
@@ -31,8 +32,10 @@ import { TicketResultCard } from "@/components/customer-search/TicketResultCard"
 import { OrderResultCard } from "@/components/customer-search/OrderResultCard";
 
 import { customers, tickets, orders, type Customer } from "@/data/mock";
+import { useCustomerSearch } from "@/lib/api/useCustomerSearch";
+import { useFilterOptions } from "@/lib/api/useFilterOptions";
 import { useCustomerTags } from "@/lib/tags";
-import { getRecentCustomerIds } from "@/lib/recent";
+import { fetchRecentlyViewed } from "@/lib/recent";
 import { toast } from "@/components/ui/toast/toaster";
 
 type SearchTab = "customers" | "tickets" | "orders";
@@ -48,43 +51,69 @@ export default function CustomerSearch() {
   const newCustomerBtnRef = React.useRef<HTMLButtonElement>(null);
 
   const { tags, getTagsForCustomer, addTag, unassignTag, bulkAssignTag } = useCustomerTags();
+  const { options: filterOptions } = useFilterOptions();
 
-  // Recent customer IDs from localStorage, with a sensible fallback so the
-  // section is populated on first run.
-  const [recentIds, setRecentIds] = React.useState<string[]>(() => getRecentCustomerIds());
+  // Recently-viewed customers — real data for the current agent, from the API.
+  // Only actually-viewed customers are shown (no fallback); the section hides
+  // until the agent has opened at least one customer.
+  const [recentCustomers, setRecentCustomers] = React.useState<Customer[]>([]);
   React.useEffect(() => {
-    const onUpdate = () => setRecentIds(getRecentCustomerIds());
+    let active = true;
+    const load = () => {
+      fetchRecentlyViewed(4)
+        .then((c) => { if (active) setRecentCustomers(c); })
+        .catch(() => { if (active) setRecentCustomers([]); });
+    };
+    load();
+    const onUpdate = () => load();
     window.addEventListener("pulse-recent-customers-updated", onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
+      active = false;
       window.removeEventListener("pulse-recent-customers-updated", onUpdate);
       window.removeEventListener("storage", onUpdate);
     };
   }, []);
-  const stored = recentIds
-    .map((id) => customers.find((c) => c.id === id))
-    .filter((c): c is Customer => Boolean(c));
-  const recentCustomers = (stored.length > 0 ? stored : customers).slice(0, 4);
 
   const q = query.trim().toLowerCase();
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
   const activeFilterCount = Object.values(filters).filter((v) => v).length;
   const shouldShowResults = q.length > 0 || hasActiveFilters;
 
+  // Live customer search against the CAM Customer Profile API. Runs only while
+  // there are results to show. If the service is unreachable we degrade
+  // gracefully to the local demo data (Ground Rules I §7 — degrade, not fail)
+  // so the console stays usable offline / before the backend is wired.
+  const search = useCustomerSearch({
+    query,
+    status: filters.status || undefined,
+    type: filters.type || undefined,
+    segment: filters.segment || undefined,
+    enabled: shouldShowResults,
+  });
+  const useLive = !search.unavailable;
+  const sourceCustomers = useLive ? search.customers : customers;
+
   const filteredCustomers = React.useMemo(() => {
-    return customers.filter((c) => {
-      if (q) {
-        const matches =
-          c.name.toLowerCase().includes(q) ||
-          c.accountNumber.toLowerCase().includes(q) ||
-          c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
-          c.postcode.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q);
-        if (!matches) return false;
+    return sourceCustomers.filter((c) => {
+      // Live: the API already applied text + status/type/segment. Offline
+      // fallback (demo data): apply those client-side so the demo still filters.
+      if (!useLive) {
+        if (q) {
+          const matches =
+            c.name.toLowerCase().includes(q) ||
+            c.accountNumber.toLowerCase().includes(q) ||
+            c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
+            c.postcode.toLowerCase().includes(q) ||
+            c.email.toLowerCase().includes(q);
+          if (!matches) return false;
+        }
+        if (filters.status && c.status !== filters.status) return false;
+        if (filters.type && c.type !== filters.type) return false;
+        if (filters.segment && c.segment !== filters.segment) return false;
       }
-      if (filters.status && c.status !== filters.status) return false;
-      if (filters.type && c.type !== filters.type) return false;
-      if (filters.segment && c.segment !== filters.segment) return false;
+      // Always client-side — not filtered server-side (contract is C9-owned;
+      // tags are local assignments).
       if (filters.contractStatus && c.contractStatus !== filters.contractStatus) return false;
       if (filters.tagId) {
         const tagsFor = getTagsForCustomer(c.id);
@@ -92,19 +121,25 @@ export default function CustomerSearch() {
       }
       return true;
     });
-  }, [q, filters, getTagsForCustomer]);
+  }, [sourceCustomers, q, useLive, filters, getTagsForCustomer]);
 
   // Duplicate detection — same email or phone across different accounts
   const duplicateIds = React.useMemo(() => {
     const emailMap = new Map<string, Customer[]>();
     const phoneMap = new Map<string, Customer[]>();
     for (const c of filteredCustomers) {
-      const email = c.email.toLowerCase();
-      if (!emailMap.has(email)) emailMap.set(email, []);
-      emailMap.get(email)!.push(c);
+      // Only group on values we actually have — live identity results carry no
+      // email/phone (owned by other modules), so empty values must not collide.
+      const email = c.email.trim().toLowerCase();
+      if (email) {
+        if (!emailMap.has(email)) emailMap.set(email, []);
+        emailMap.get(email)!.push(c);
+      }
       const phone = c.phone.replace(/\s/g, "");
-      if (!phoneMap.has(phone)) phoneMap.set(phone, []);
-      phoneMap.get(phone)!.push(c);
+      if (phone) {
+        if (!phoneMap.has(phone)) phoneMap.set(phone, []);
+        phoneMap.get(phone)!.push(c);
+      }
     }
     const dupes = new Set<string>();
     for (const group of emailMap.values()) if (group.length > 1) group.forEach((c) => dupes.add(c.id));
@@ -234,10 +269,12 @@ export default function CustomerSearch() {
         onOpenChange={setFiltersOpen}
         filters={filters}
         onFiltersChange={setFilters}
+        options={filterOptions}
         tags={tags}
-        onAddTag={(t) => {
-          addTag(t);
-          toast({ title: "Tag Created", description: `"${t.label}" is now available.` });
+        onAddTag={(label) => {
+          void addTag(label).then((t) =>
+            toast({ title: "Tag Created", description: `"${t.label}" is now available.` })
+          );
         }}
       />
 
@@ -287,6 +324,26 @@ export default function CustomerSearch() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          {tab === "customers" && search.loading && (
+            <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <Spinner size="xs" /> Searching customers…
+            </div>
+          )}
+
+          {tab === "customers" && !search.loading && search.unavailable && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Live customer search is unavailable — showing demo data.
+            </div>
+          )}
+
+          {tab === "customers" && !search.loading && !search.unavailable && search.error && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/30 text-xs text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {search.error}
+            </div>
+          )}
 
           {tab === "customers" && filteredCustomers.length > 0 && (
             <div className="flex items-center gap-2 px-1">

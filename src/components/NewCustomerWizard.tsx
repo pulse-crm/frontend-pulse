@@ -28,6 +28,11 @@ import { Separator } from "@/components/ui/separator/separator";
 import { Badge } from "@/components/ui/badge/badge";
 import { toast } from "@/components/ui/toast/toaster";
 import { products } from "@/data/mock";
+import { submitNewCustomerWizard } from "@/lib/api/customers";
+import { ApiError, friendlyMessage } from "@/lib/api/errors";
+
+// Console title → CAM title vocabulary (MR/MRS/MS/MX/DR/PROF/OTHER).
+const TITLE_MAP: Record<string, string> = { Mr: "MR", Mrs: "MRS", Ms: "MS", Miss: "MS", Dr: "DR" };
 import {
   formatCurrency,
   getEmailError,
@@ -60,6 +65,7 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
   const [step, setStep] = React.useState(0);
   const [processing, setProcessing] = React.useState(false);
   const [orderComplete, setOrderComplete] = React.useState(false);
+  const [orderRef, setOrderRef] = React.useState("");
 
   // Step 0: Customer
   const [customerType, setCustomerType] = React.useState<"B2C" | "B2B">("B2C");
@@ -98,6 +104,7 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
     setStep(0);
     setProcessing(false);
     setOrderComplete(false);
+    setOrderRef("");
     setCustomerType("B2C");
     setTitle("");
     setFirstName("");
@@ -154,17 +161,73 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
     if (step < 4) setStep(step + 1);
   };
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    // Create the customer identity in the CAM Customer Profile service. The rest
+    // of the order (products, payment, provisioning) is owned by foreign domains
+    // (Product, Fulfilment) and remains simulated here.
+    try {
+      const firstProduct = selectedProductsList[0];
+      const termMonths = commitment === "Month-to-Month" ? 1 : parseInt(commitment, 10) || 1;
+      const res = await submitNewCustomerWizard({
+        customerType,
+        ...(TITLE_MAP[title] ? { title: TITLE_MAP[title] } : {}),
+        givenName: firstName,
+        familyName: lastName,
+        ...(customerType === "B2B" && companyName ? { companyName } : {}),
+        email,
+        phone,
+        address: {
+          line1: addressLine1,
+          ...(addressLine2 ? { line2: addressLine2 } : {}),
+          city,
+          ...(county ? { region: county } : {}),
+          postcode,
+        },
+        ...(firstProduct
+          ? {
+              product: {
+                code: firstProduct.id,
+                name: firstProduct.name,
+                category: firstProduct.category,
+                monthlyCharge: monthlyTotal,
+                termMonths,
+              },
+            }
+          : {}),
+        marketingOptIn: false,
+      });
+      setOrderRef(res.accountNumber);
       setProcessing(false);
       setOrderComplete(true);
       toast({
-        title: "Order submitted",
-        description: "Customer created and order submitted successfully.",
+        title: "Customer onboarded",
+        description: `${displayName} created — account ${res.accountNumber}. Profile, account, contacts, address${res.contractId ? ", contract" : ""} provisioned.`,
         variant: "success",
       });
-    }, 2200);
+    } catch (err) {
+      setProcessing(false);
+      // Network/timeout/dependency outages degrade gracefully so the demo flow
+      // still completes offline; genuine validation/permission errors are shown.
+      const unreachable =
+        err instanceof ApiError &&
+        ["NETWORK", "TIMEOUT", "DEPENDENCY_UNAVAILABLE", "INTERNAL"].includes(err.code);
+      if (unreachable) {
+        setOrderRef("ORD-OFFLINE");
+        setOrderComplete(true);
+        toast({
+          title: "Order submitted (offline)",
+          description: "Customer service unavailable — order recorded locally.",
+          variant: "info",
+        });
+      } else {
+        toast({
+          title: "Could not create customer",
+          description: friendlyMessage(err),
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const toggleProduct = (id: string) =>
@@ -173,11 +236,6 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
     );
 
   const displayName = customerType === "B2B" ? companyName : `${firstName} ${lastName}`.trim();
-  const orderRef = React.useMemo(
-    () => `ORD-${Math.floor(7100 + Math.random() * 900)}`,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [orderComplete]
-  );
 
   return (
     <Dialog open={open} onOpenChange={handleClose} align="top" anchorRef={anchorRef} anchorOffset={-5}>

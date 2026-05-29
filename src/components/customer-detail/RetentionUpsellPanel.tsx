@@ -26,6 +26,8 @@ import { toast } from "@/components/ui/toast/toaster";
 import { cn } from "@/lib/cn";
 import type { Customer, Subscription } from "@/data/mock";
 import { formatCurrency } from "@/lib/format";
+import { renewContract, applyServiceDiscount, type RenewableContract } from "@/lib/api/customerDetail";
+import { friendlyMessage } from "@/lib/api/errors";
 
 type DeliveryChannel = "email" | "post" | "whatsapp";
 
@@ -40,12 +42,14 @@ interface RetentionOffer {
   name: string;
   description: string;
   duration: string;
+  /** Offers backed by a real CAM contract discount; others stay simulated. */
+  discount?: { type: "PERCENTAGE" | "FIXED_AMOUNT"; value: number; durationMonths?: number };
 }
 
 const retentionOffers: RetentionOffer[] = [
-  { id: "RET01", name: "Loyalty Discount 15%", description: "15% off current plan", duration: "12 months" },
+  { id: "RET01", name: "Loyalty Discount 15%", description: "15% off current plan", duration: "12 months", discount: { type: "PERCENTAGE", value: 15, durationMonths: 12 } },
   { id: "RET02", name: "Free Speed Upgrade", description: "Next tier broadband", duration: "6 months" },
-  { id: "RET03", name: "£50 Retention Credit", description: "Applied to next invoice", duration: "One-time" },
+  { id: "RET03", name: "£50 Retention Credit", description: "Applied to next invoice", duration: "One-time", discount: { type: "FIXED_AMOUNT", value: 50 } },
   { id: "RET04", name: "Free Add-on Bundle", description: "International calling pack", duration: "3 months" },
 ];
 
@@ -58,10 +62,68 @@ const upgradeSuggestions = [
 interface RetentionUpsellPanelProps {
   customer: Customer;
   subscriptions: Subscription[];
+  /** The CAM contract to renew (live customers); null for demo/fallback. */
+  renewableContract?: RenewableContract | null;
 }
 
-export function RetentionUpsellPanel({ customer, subscriptions }: RetentionUpsellPanelProps) {
+export function RetentionUpsellPanel({ customer, subscriptions, renewableContract }: RetentionUpsellPanelProps) {
   const [appliedOffer, setAppliedOffer] = React.useState<string | null>(null);
+  const [renewing, setRenewing] = React.useState(false);
+  const [applyingOffer, setApplyingOffer] = React.useState<string | null>(null);
+
+  const handleApplyOffer = async (offer: RetentionOffer) => {
+    // A discount offer on a live contract → real CAM discount API. Otherwise
+    // (non-discount perk, or demo/fallback customer) keep the simulated action.
+    if (offer.discount && renewableContract) {
+      setApplyingOffer(offer.id);
+      try {
+        await applyServiceDiscount(renewableContract.contractId, {
+          discountType: offer.discount.type,
+          value: offer.discount.value,
+          reason: offer.name,
+          ...(offer.discount.durationMonths !== undefined ? { durationMonths: offer.discount.durationMonths } : {}),
+        });
+        setAppliedOffer(offer.id);
+        toast({
+          title: "Discount applied",
+          description: `${offer.name} applied to ${renewableContract.productName}. Billing will reflect it.`,
+          variant: "success",
+        });
+      } catch (err) {
+        toast({ title: "Could not apply discount", description: friendlyMessage(err), variant: "destructive" });
+      } finally {
+        setApplyingOffer(null);
+      }
+      return;
+    }
+    setAppliedOffer(offer.id);
+    toast({ title: "Offer applied", description: `${offer.name} applied to ${customer.name}.` });
+  };
+
+  const handleRenew = async () => {
+    // No live contract (demo / fallback) → keep the simulated action.
+    if (!renewableContract) {
+      toast({ title: "Renewal initiated", description: `Contract renewal started for ${customer.name}.` });
+      return;
+    }
+    setRenewing(true);
+    try {
+      const res = await renewContract(renewableContract.contractId, {
+        newTermMonths: renewableContract.termMonths,
+        newCatalogueVersionId: renewableContract.catalogueVersionId,
+        newMonthlyRecurringCharge: renewableContract.monthlyRecurringCharge,
+      });
+      toast({
+        title: "Contract renewed",
+        description: `${renewableContract.productName} renewed for ${renewableContract.termMonths} months (new contract ${res.successorContractId.slice(0, 8)}).`,
+        variant: "success",
+      });
+    } catch (err) {
+      toast({ title: "Could not renew contract", description: friendlyMessage(err), variant: "destructive" });
+    } finally {
+      setRenewing(false);
+    }
+  };
   const [quoteOpen, setQuoteOpen] = React.useState(false);
   const [quoteProduct, setQuoteProduct] = React.useState<QuoteProduct | null>(null);
   const [deliveryChannel, setDeliveryChannel] = React.useState<DeliveryChannel>("email");
@@ -173,23 +235,19 @@ export function RetentionUpsellPanel({ customer, subscriptions }: RetentionUpsel
                 <Button
                   size="sm"
                   className="h-6 text-[10px]"
-                  onClick={() => {
-                    setAppliedOffer(offer.id);
-                    toast({ title: "Offer applied", description: `${offer.name} applied to ${customer.name}.` });
-                  }}
+                  disabled={applyingOffer === offer.id}
+                  onClick={() => handleApplyOffer(offer)}
                 >
-                  Apply
+                  {applyingOffer === offer.id ? "Applying…" : "Apply"}
                 </Button>
               )}
             </div>
           ))}
         </div>
 
-        <Button
-          className="w-full h-8 text-xs"
-          onClick={() => toast({ title: "Renewal initiated", description: `Contract renewal started for ${customer.name}.` })}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" /> Initiate Contract Renewal
+        <Button className="w-full h-8 text-xs" onClick={handleRenew} disabled={renewing}>
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {renewing ? "Renewing…" : "Initiate Contract Renewal"}
         </Button>
       </div>
 

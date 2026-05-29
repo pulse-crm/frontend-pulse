@@ -1,5 +1,32 @@
+import { apiClient } from "./api/client";
+import { endpoints } from "./api/endpoints";
+import { summaryToCustomer, type CustomerProfileSummary } from "./api/customers";
+import type { Customer } from "@/data/mock";
+
 const KEY = "pulse-recent-customers";
 const MAX = 6;
+
+/**
+ * Record that the current agent viewed a customer (per-agent, server-side), and
+ * mirror it to local storage as an offline cache. Best-effort — never throws.
+ */
+export async function recordRecentlyViewed(customerId: string): Promise<void> {
+  pushRecentCustomerId(customerId);
+  try {
+    await apiClient.post(endpoints.recentlyViewed, { body: { customerId } });
+    window.dispatchEvent(new CustomEvent("pulse-recent-customers-updated"));
+  } catch {
+    /* offline / unauthenticated — local cache still updated */
+  }
+}
+
+/** Fetch the agent's recently-viewed customers (real data), newest first. */
+export async function fetchRecentlyViewed(limit = 8): Promise<Customer[]> {
+  const res = await apiClient.get<{ items: CustomerProfileSummary[] }>(endpoints.recentlyViewed, {
+    params: { limit },
+  });
+  return res.items.map(summaryToCustomer);
+}
 
 export function getRecentCustomerIds(): string[] {
   try {

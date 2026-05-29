@@ -15,6 +15,7 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible/collapsible";
 import type { CustomerTag } from "@/lib/tags";
+import type { FilterOptionLists } from "@/lib/api/useFilterOptions";
 
 export interface CustomerFilters {
   status: string;
@@ -32,18 +33,16 @@ export const emptyFilters: CustomerFilters = {
   tagId: "",
 };
 
-const statusOptions = ["Active", "Suspended", "Pending", "Closed"] as const;
-const typeOptions = ["B2C", "B2B"] as const;
-const segmentOptions = ["Consumer", "SMB", "Enterprise", "Government"] as const;
-const contractStatusOptions = ["Active", "Expiring Soon", "Expired", "Renewed", "Pending"] as const;
-
 interface CustomerFilterBarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filters: CustomerFilters;
   onFiltersChange: (filters: CustomerFilters) => void;
+  /** Filter option lists (fetched from the API). */
+  options: FilterOptionLists;
   tags: CustomerTag[];
-  onAddTag: (tag: CustomerTag) => void;
+  /** Create a new tag by label; persistence is handled by the caller (API). */
+  onAddTag: (label: string) => void;
 }
 
 export function CustomerFilterBar({
@@ -51,6 +50,7 @@ export function CustomerFilterBar({
   onOpenChange,
   filters,
   onFiltersChange,
+  options,
   tags,
   onAddTag,
 }: CustomerFilterBarProps) {
@@ -63,10 +63,7 @@ export function CustomerFilterBar({
   const handleAddTag = () => {
     const label = newTagInput.trim();
     if (!label) return;
-    const id = label.toLowerCase().replace(/\s+/g, "-");
-    if (tags.some((t) => t.id === id)) return;
-    const hue = Math.floor(Math.random() * 360);
-    onAddTag({ id, label, color: `hsl(${hue} 65% 45%)` });
+    onAddTag(label);
     setNewTagInput("");
   };
 
@@ -100,8 +97,8 @@ export function CustomerFilterBar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {options.statuses.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -114,8 +111,8 @@ export function CustomerFilterBar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {typeOptions.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {options.types.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -128,8 +125,8 @@ export function CustomerFilterBar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Segments</SelectItem>
-                  {segmentOptions.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {options.segments.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -142,8 +139,8 @@ export function CustomerFilterBar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Contracts</SelectItem>
-                  {contractStatusOptions.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {options.contractStatuses.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
