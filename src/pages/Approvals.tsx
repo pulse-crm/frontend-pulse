@@ -324,6 +324,7 @@ export default function Approvals() {
       },
     ]);
     toast({
+      variant: "success",
       title: "Approved",
       description: `${formatCurrency(entry.amount)} ${entry.type.toLowerCase()} for ${entry.customerName} approved.`,
     });
@@ -1168,7 +1169,7 @@ function NeoApprovalConfig() {
           size="sm"
           className="text-xs gap-1"
           onClick={() =>
-            toast({ title: "Neo Config Saved", description: "AI approval thresholds updated." })
+            toast({ variant: "success", title: "Neo Config Saved", description: "AI approval thresholds updated." })
           }
         >
           <Save className="h-3 w-3" /> Save Configuration
@@ -1237,13 +1238,13 @@ function ApprovalPolicyEditor() {
         },
       ]);
     }
-    toast({ title: "Saved", description: "Approval policy updated." });
+    toast({ variant: "success", title: "Saved", description: "Approval policy updated." });
     setDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
     setPolicies((prev) => prev.filter((p) => p.id !== id));
-    toast({ title: "Deleted" });
+    toast({ variant: "success", title: "Deleted" });
   };
 
   return (

@@ -154,7 +154,7 @@ export function NeoQuickChat() {
     setSending(false);
     setMessages([greeting()]);
     setClearConfirmOpen(false);
-    toast({ title: "Chat cleared", description: "Your conversation history with Neo has been cleared." });
+    toast({ variant: "success", title: "Chat cleared", description: "Your conversation history with Neo has been cleared." });
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {

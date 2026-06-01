@@ -10,7 +10,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { InvoiceViewDialog } from "./InvoiceViewDialog";
 import { BillingAdjustDialog } from "./BillingAdjustDialog";
 import type { Invoice, Payment, BillingAdjustment } from "@/data/mock";
-import { billingAdjustments, discounts as allDiscounts } from "@/data/mock";
+import { billingAdjustments, discounts as mockDiscounts } from "@/data/mock";
+import type { DiscountRow } from "@/lib/api/customerDetail";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -20,7 +21,21 @@ interface InvoicesPanelProps {
   customerName?: string;
   /** Kept on the prop API for callers but not rendered as a separate table to match project-files. */
   payments?: Payment[];
+  /** Discount rows for the "Discounts & Promotions" table. When provided (live
+   *  customers) these are the CAM contract discounts; omitted → demo mock set. */
+  discounts?: DiscountRow[];
 }
+
+/** Demo/fallback discounts (no live aggregate) mapped to the panel's row shape. */
+const mockDiscountRows: DiscountRow[] = mockDiscounts.map((d) => ({
+  id: d.id,
+  code: d.code,
+  type: d.type,
+  value: d.value,
+  status: d.status,
+  period: `→ ${formatDate(d.expiresAt)}`,
+  appliesTo: d.description,
+}));
 
 function daysOverdue(dueIso: string): number {
   const due = Date.parse(dueIso);
@@ -47,7 +62,8 @@ function KpiTile({
   );
 }
 
-export function InvoicesPanel({ invoices, customerName, payments = [] }: InvoicesPanelProps) {
+export function InvoicesPanel({ invoices, customerName, payments = [], discounts }: InvoicesPanelProps) {
+  const discountRows = discounts ?? mockDiscountRows;
   const [tab, setTab] = React.useState("invoices");
   const [viewInvoice, setViewInvoice] = React.useState<Invoice | null>(null);
   const [viewOpen, setViewOpen] = React.useState(false);
@@ -255,7 +271,7 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
               </TableBody>
             </Table>
 
-            {allDiscounts.length > 0 && (
+            {discountRows.length > 0 && (
               <div className="border-t border-border">
                 <div className="px-3 py-2">
                   <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -274,7 +290,7 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
                     </tr>
                   </TableHeader>
                   <TableBody>
-                    {allDiscounts.map((d) => (
+                    {discountRows.map((d) => (
                       <TableRow key={d.id}>
                         <TableCell className="font-medium text-xs py-2">{d.code}</TableCell>
                         <TableCell className="text-xs py-2">{d.type}</TableCell>
@@ -284,8 +300,8 @@ export function InvoicesPanel({ invoices, customerName, payments = [] }: Invoice
                         <TableCell className="py-2">
                           <StatusBadge status={d.status === "Expired" ? "Ended" : d.status} />
                         </TableCell>
-                        <TableCell className="text-xs py-2">→ {formatDate(d.expiresAt)}</TableCell>
-                        <TableCell className="text-xs py-2">{d.description}</TableCell>
+                        <TableCell className="text-xs py-2">{d.period}</TableCell>
+                        <TableCell className="text-xs py-2">{d.appliesTo}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

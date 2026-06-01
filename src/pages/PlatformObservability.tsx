@@ -209,7 +209,7 @@ function AlertsSummary() {
                       size="icon-sm"
                       className="h-6 w-6 p-0 shrink-0"
                       onClick={() =>
-                        toast({ title: "Alert acknowledged", description: alert.title })
+                        toast({ variant: "success", title: "Alert acknowledged", description: alert.title })
                       }
                     >
                       <X className="h-3 w-3" />

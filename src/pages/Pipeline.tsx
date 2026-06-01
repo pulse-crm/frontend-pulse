@@ -66,7 +66,7 @@ export default function Pipeline() {
         d.id === dealId ? { ...d, stage: newStage, probability: prob, updated: "just now" } : d
       )
     );
-    toast({ title: "Deal Moved", description: `Moved to ${stage?.label}` });
+    toast({ variant: "success", title: "Deal Moved", description: `Moved to ${stage?.label}` });
   };
 
   const handleAdd = () => {
@@ -86,7 +86,7 @@ export default function Pipeline() {
     setDeals((prev) => [...prev, deal]);
     setAddOpen(false);
     setDraft({ name: "", company: "", value: "", stage: "Lead" });
-    toast({ title: "Deal Created", description: deal.name ?? deal.company });
+    toast({ variant: "success", title: "Deal Created", description: deal.name ?? deal.company });
   };
 
   const activeStages = stages.filter((s) => s.id !== "Lost");

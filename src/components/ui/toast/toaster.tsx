@@ -50,11 +50,13 @@ export function dismiss(id: string) {
   emit();
 }
 
+// Opaque card background (so page text never shows through the toast) plus a
+// solid colour border and a bold left accent stripe to indicate success/failure.
 const variantStyles: Record<ToastVariant, string> = {
   default: "bg-card border-border text-foreground",
-  success: "bg-card border-success/40 text-foreground",
-  destructive: "bg-card border-destructive/40 text-foreground",
-  info: "bg-card border-info/40 text-foreground",
+  success: "bg-card border-success border-l-4 text-foreground",
+  destructive: "bg-card border-destructive border-l-4 text-foreground",
+  info: "bg-card border-info border-l-4 text-foreground",
 };
 
 const variantIcon: Record<ToastVariant, React.ReactNode> = {
@@ -74,7 +76,7 @@ export function Toaster() {
     };
   }, []);
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed top-16 right-4 z-[200] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}

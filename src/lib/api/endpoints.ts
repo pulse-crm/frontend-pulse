@@ -46,4 +46,9 @@ export const endpoints = {
 
   /** Account status change (suspend/reactivate/close) — Customer Account C1. */
   accountStatus: (id: string) => `/accounts/${encodeURIComponent(id)}/status`,
+  /** Save an internal agent note against an account — Customer Account C1. */
+  accountNote: (id: string) => `/accounts/${encodeURIComponent(id)}/notes`,
+  /** Update (pin) or delete a specific account note — Customer Account C1. */
+  accountNoteById: (id: string, noteId: string) =>
+    `/accounts/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`,
 } as const;

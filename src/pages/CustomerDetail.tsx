@@ -49,7 +49,7 @@ import { recordRecentlyViewed } from "@/lib/recent";
 import { useCustomerTags } from "@/lib/tags";
 import { Spinner } from "@/components/ui/spinner/spinner";
 import { useCustomerDetail } from "@/lib/api/useCustomerDetail";
-import { detailToCustomer, detailToSubscriptions, detailToNotes, detailToInvoices, outstandingFromBilling, pickRenewableContract } from "@/lib/api/customerDetail";
+import { detailToCustomer, detailToSubscriptions, detailToNotes, detailToInvoices, detailToDiscounts, outstandingFromBilling, pickRenewableContract } from "@/lib/api/customerDetail";
 import { changeAccountStatus } from "@/lib/api/accounts";
 import { friendlyMessage } from "@/lib/api/errors";
 
@@ -112,21 +112,31 @@ export default function CustomerDetail() {
   ];
   const custOrders = isLive ? [] : orders.filter((o) => o.customerId === customer.id);
   const custInvoices = isLive ? (detail ? detailToInvoices(detail) : []) : invoices.filter((i) => i.customer === customer.name);
+  // Live: the customer's active CAM contract discounts; demo/fallback → mock set.
+  const custDiscounts = isLive && detail ? detailToDiscounts(detail) : undefined;
   const custDevices = isLive ? [] : devices.filter((d) => d.customerId === customer.id);
   const custPayments = isLive ? [] : payments.filter((p) => p.customerId === customer.id);
   const custInteractions = isLive ? [] : interactions.filter((i) => i.customerId === customer.id);
 
   const tags = getTagsForCustomer(customer.id);
 
-  // Customer Value Score (0–100) — mirrors project-files calculation
+  // Customer Value Score (0–100). Live customers use the CAM-computed value from
+  // Customer 360 (spend / tenure / billing health / active services). The demo /
+  // fallback dataset keeps the prototype's 4×25 heuristic (no live signals).
   const monthlySpend = custSubs.reduce((sum, sub) => sum + sub.monthly, 0);
   const spendScore = Math.min(25, (monthlySpend / 200) * 25);
   const paymentScore = custPayments.length > 0 ? 25 : 12.5; // all mock payments are completed
   const creditScoreVal = Math.min(25, (customer.creditScore / 1000) * 25);
   const ticketScore = Math.max(0, 25 - custTickets.length * 5);
-  const customerValueScore = Math.round(spendScore + paymentScore + creditScoreVal + ticketScore);
+  const demoValueScore = Math.round(spendScore + paymentScore + creditScoreVal + ticketScore);
+  // Use the CAM-computed value when present; fall back to the demo score until the
+  // backend that returns valueScore/valueTier is deployed.
+  const customerValueScore =
+    isLive && detail && Number.isFinite(detail.valueScore) ? detail.valueScore : demoValueScore;
   const customerValueLabel =
-    customerValueScore >= 80 ? "Platinum" : customerValueScore >= 60 ? "Gold" : customerValueScore >= 40 ? "Silver" : "Bronze";
+    isLive && detail && detail.valueTier
+      ? detail.valueTier
+      : customerValueScore >= 80 ? "Platinum" : customerValueScore >= 60 ? "Gold" : customerValueScore >= 40 ? "Silver" : "Bronze";
 
   // Outstanding balance: unpaid invoices minus payments not yet allocated
   const unpaidTotal = custInvoices.filter((i) => i.status !== "Paid").reduce((sum, i) => sum + i.amount, 0);
@@ -245,7 +255,7 @@ export default function CustomerDetail() {
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <TabsContent value="overview" className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
           <SubscriptionsPanel data={custSubs} />
           <div data-tour="customer-tickets-panel" className="h-full">
             <TicketsPanel data={custTickets} />
@@ -253,9 +263,9 @@ export default function CustomerDetail() {
           <DevicesPanel data={custDevices} />
           <OrdersPanel data={custOrders} />
           <div data-tour="customer-invoices-panel" className="h-full">
-            <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
+            <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} discounts={custDiscounts} />
           </div>
-          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} />
+          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} onMutated={reload} />
           <CommunicationsPanel customer={customer} />
           <ActivityTimelinePanel
             interactions={custInteractions}
@@ -263,7 +273,7 @@ export default function CustomerDetail() {
             orders={custOrders}
           />
           <InteractionHistoryPanel data={custInteractions} />
-          <NotesPanel initial={custNotes} />
+          <NotesPanel initial={custNotes} accountId={detail?.account?.accountId ?? null} onSaved={reload} />
           <CreditScoringPanel customer={customer} invoices={custInvoices} payments={custPayments} outstandingBalance={outstandingBalance} />
         </TabsContent>
 
@@ -281,8 +291,8 @@ export default function CustomerDetail() {
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-3">
-          <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} />
-          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} />
+          <InvoicesPanel invoices={custInvoices} payments={custPayments} customerName={customer.name} discounts={custDiscounts} />
+          <RetentionUpsellPanel customer={customer} subscriptions={custSubs} renewableContract={renewableContract} onMutated={reload} />
           <CreditScoringPanel customer={customer} invoices={custInvoices} payments={custPayments} outstandingBalance={outstandingBalance} />
         </TabsContent>
 
@@ -294,7 +304,7 @@ export default function CustomerDetail() {
           />
           <InteractionHistoryPanel data={custInteractions} />
           <CommunicationsPanel customer={customer} />
-          <NotesPanel initial={custNotes} />
+          <NotesPanel initial={custNotes} accountId={detail?.account?.accountId ?? null} onSaved={reload} />
         </TabsContent>
       </Tabs>
 

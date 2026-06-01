@@ -38,7 +38,7 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = () => {
       setAvatar(reader.result as string);
-      toast({ title: "Avatar updated" });
+      toast({ variant: "success", title: "Avatar updated" });
     };
     reader.readAsDataURL(file);
   };

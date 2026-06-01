@@ -88,19 +88,19 @@ export default function EmailTemplates() {
     const trimmed = newGroupName.trim();
     if (!trimmed) return;
     if (categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      toast({ title: "Group already exists" });
+      toast({ variant: "destructive", title: "Group already exists" });
       return;
     }
     setCustomCategories(prev => [...prev, trimmed]);
     setNewGroupName("");
     setAddGroupOpen(false);
-    toast({ title: "Group added", description: `"${trimmed}" is now available.` });
+    toast({ variant: "success", title: "Group added", description: `"${trimmed}" is now available.` });
   };
 
   const handleRemoveGroup = (group: string) => {
     const hasTemplates = templates.some(t => t.category === group);
     if (hasTemplates) {
-      toast({ title: "Cannot remove", description: "Group still has templates assigned." });
+      toast({ variant: "destructive", title: "Cannot remove", description: "Group still has templates assigned." });
       return;
     }
     if (customCategories.includes(group)) {
@@ -109,7 +109,7 @@ export default function EmailTemplates() {
       setRemovedDefaults(prev => [...prev, group]);
     }
     if (category === group) setCategory("All");
-    toast({ title: "Group removed" });
+    toast({ variant: "success", title: "Group removed" });
   };
 
   const filtered = useMemo(() => {
@@ -123,7 +123,7 @@ export default function EmailTemplates() {
 
   const copyToClipboard = (t: EmailTemplate) => {
     navigator.clipboard.writeText(t.body);
-    toast({ title: "Copied!", description: `${t.name} body copied to clipboard.` });
+    toast({ variant: "success", title: "Copied!", description: `${t.name} body copied to clipboard.` });
   };
 
   const toggleStar = (id: string) => {
@@ -136,7 +136,7 @@ export default function EmailTemplates() {
 
   const handleDelete = (id: string) => {
     setTemplates(prev => prev.filter(t => t.id !== id));
-    toast({ title: "Template Deleted" });
+    toast({ variant: "success", title: "Template Deleted" });
   };
 
   const handleEdit = () => {
@@ -146,7 +146,7 @@ export default function EmailTemplates() {
     setTemplates(prev => prev.map(t => t.id === id ? { ...t, name, subject, body, category: cat, status, last_edited } : t));
     setEditOpen(false);
     setEditTemplate(null);
-    toast({ title: "Template Updated" });
+    toast({ variant: "success", title: "Template Updated" });
   };
 
   const startEdit = (t: EmailTemplate) => {
@@ -169,7 +169,7 @@ export default function EmailTemplates() {
     setTemplates(prev => [...prev, row]);
     setEditOpen(false);
     setEditTemplate(null);
-    toast({ title: "Template Created" });
+    toast({ variant: "success", title: "Template Created" });
   };
 
   const isNew = editTemplate && !templates.some(t => t.id === editTemplate.id);

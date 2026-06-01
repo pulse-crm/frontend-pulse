@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge/badge";
 import { toast } from "@/components/ui/toast/toaster";
 import { products } from "@/data/mock";
 import { submitNewCustomerWizard } from "@/lib/api/customers";
+import { recordRecentlyViewed } from "@/lib/recent";
 import { ApiError, friendlyMessage } from "@/lib/api/errors";
 
 // Console title → CAM title vocabulary (MR/MRS/MS/MX/DR/PROF/OTHER).
@@ -38,6 +39,8 @@ import {
   getEmailError,
   getPhoneError,
   getPostcodeError,
+  formatUkPostcode,
+  clampUkPhone,
 } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -200,6 +203,10 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
       setOrderRef(res.accountNumber);
       setProcessing(false);
       setOrderComplete(true);
+      // Surface the just-created customer in the search page's "Recently viewed"
+      // immediately (records server-side + fires pulse-recent-customers-updated),
+      // so it appears without a manual browser reload.
+      void recordRecentlyViewed(res.customerId);
       toast({
         title: "Customer onboarded",
         description: `${displayName} created — account ${res.accountNumber}. Profile, account, contacts, address${res.contractId ? ", contract" : ""} provisioned.`,
@@ -373,8 +380,10 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
                 </Label>
                 <Input
                   id="phone"
+                  type="tel"
+                  inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(clampUkPhone(e.target.value))}
                   placeholder="+44 1234 567890"
                 />
                 {phone && getPhoneError(phone) && (
@@ -442,6 +451,11 @@ export function NewCustomerWizard({ open, onOpenChange, anchorRef }: NewCustomer
                   id="postcode"
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value)}
+                  onBlur={() => {
+                    // Canonicalise (uppercase + single space) only when valid, so
+                    // invalid input stays as typed with its error showing.
+                    if (!getPostcodeError(postcode)) setPostcode(formatUkPostcode(postcode));
+                  }}
                   placeholder="SW1A 1AA"
                 />
                 {postcode && getPostcodeError(postcode) && (

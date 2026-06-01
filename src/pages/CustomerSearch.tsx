@@ -215,7 +215,7 @@ export default function CustomerSearch() {
   const handleBulkTag = (tagId: string) => {
     bulkAssignTag(Array.from(selected), tagId);
     const label = tags.find((t) => t.id === tagId)?.label ?? "tag";
-    toast({ title: "Tag applied", description: `${label} added to ${selected.size} customers.` });
+    toast({ variant: "success", title: "Tag applied", description: `${label} added to ${selected.size} customers.` });
   };
 
   const handleMerge = () => {
@@ -273,7 +273,7 @@ export default function CustomerSearch() {
         tags={tags}
         onAddTag={(label) => {
           void addTag(label).then((t) =>
-            toast({ title: "Tag Created", description: `"${t.label}" is now available.` })
+            toast({ variant: "success", title: "Tag Created", description: `"${t.label}" is now available.` })
           );
         }}
       />

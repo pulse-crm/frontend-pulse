@@ -32,6 +32,7 @@ export function CustomerMergeDialog({ open, onOpenChange, duplicates }: Customer
   const handleMerge = () => {
     const primary = duplicates.find((c) => c.id === primaryId);
     toast({
+      variant: "success",
       title: "Accounts Merged",
       description: `${duplicates.length} accounts merged into ${primary?.name} (${primary?.accountNumber}). Tickets, orders, and history consolidated.`,
     });

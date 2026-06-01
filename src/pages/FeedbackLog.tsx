@@ -114,7 +114,7 @@ export default function FeedbackLog() {
 
   const setEntryStatus = useCallback((id: string, status: FeedbackStatus) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
-    toast({ title: "Status updated", description: `Feedback marked as ${statusLabels[status]}.` });
+    toast({ variant: "success", title: "Status updated", description: `Feedback marked as ${statusLabels[status]}.` });
   }, []);
 
   const clearAll = useCallback(() => {

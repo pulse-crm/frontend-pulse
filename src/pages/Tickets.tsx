@@ -200,7 +200,7 @@ export default function Tickets() {
 
   const applyView = (v: { id: string; name: string; filters: TicketFilters }) => {
     setFilters(v.filters);
-    toast({ title: "View applied", description: `"${v.name}" filters active.` });
+    toast({ variant: "success", title: "View applied", description: `"${v.name}" filters active.` });
   };
 
   const handleSaveView = () => {
@@ -209,7 +209,7 @@ export default function Tickets() {
     saveView(name, filters);
     setViewName("");
     setSaveOpen(false);
-    toast({ title: "View saved", description: `"${name}" saved.` });
+    toast({ variant: "success", title: "View saved", description: `"${name}" saved.` });
   };
 
   const exportColumns: CsvColumn<Ticket>[] = [
@@ -596,6 +596,7 @@ export default function Tickets() {
               disabled={!bulkAssignee}
               onClick={() => {
                 toast({
+                  variant: "success",
                   title: "Bulk Assign",
                   description: `${selectedIds.size} tickets assigned to ${bulkAssignee}.`,
                 });
@@ -800,7 +801,7 @@ export default function Tickets() {
                       size="sm"
                       disabled={!forwardTo}
                       onClick={() => {
-                        toast({ title: "Ticket forwarded", description: `${active.id} → ${forwardTo}` });
+                        toast({ variant: "success", title: "Ticket forwarded", description: `${active.id} → ${forwardTo}` });
                         setForwardTo("");
                       }}
                     >
@@ -847,7 +848,7 @@ export default function Tickets() {
                         ],
                       }));
                       setNewNote("");
-                      toast({ title: "Note added" });
+                      toast({ variant: "success", title: "Note added" });
                     }}
                   >
                     <StickyNote className="h-3 w-3" /> Add Note
@@ -877,7 +878,7 @@ export default function Tickets() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    toast({ title: "Ticket closed", description: active.id });
+                    toast({ variant: "success", title: "Ticket closed", description: active.id });
                     setActive(null);
                   }}
                 >

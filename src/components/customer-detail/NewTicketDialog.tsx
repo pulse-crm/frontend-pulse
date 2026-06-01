@@ -202,6 +202,7 @@ export function NewTicketDialog({
     setManualAssignee(null);
     setShowAi(false);
     toast({
+      variant: "success",
       title: "Ticket Created",
       description: `Ticket ${newTicket.id} created for ${customer.name}${
         relatedService ? ` (re: ${relatedService.product})` : ""
@@ -364,7 +365,7 @@ export function NewTicketDialog({
                     size="sm"
                     variant="default"
                     className="h-6 text-[10px]"
-                    onClick={() => toast({ title: "AI Suggestion Accepted" })}
+                    onClick={() => toast({ variant: "success", title: "AI Suggestion Accepted" })}
                   >
                     Accept
                   </Button>
@@ -419,6 +420,7 @@ export function NewTicketDialog({
                     onClick={() => {
                       setManualAssignee(null);
                       toast({
+                        variant: "success",
                         title: "Auto-assigned",
                         description: `Ticket will be assigned to ${matchedAgent.agentName}`,
                       });

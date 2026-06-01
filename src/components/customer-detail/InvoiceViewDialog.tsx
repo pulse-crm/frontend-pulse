@@ -167,14 +167,14 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
   const handleSendEmail = () => {
     setEmailSent(true);
     setTimeout(() => {
-      toast({ title: "Email Sent", description: `Invoice ${invoice.id} sent to ${emailTo}` });
+      toast({ variant: "success", title: "Email Sent", description: `Invoice ${invoice.id} sent to ${emailTo}` });
       setShowEmail(false);
       setEmailSent(false);
     }, 1500);
   };
 
   const handleDownloadPdf = () => {
-    toast({ title: "PDF Ready", description: `${invoice.id}.pdf — use the print dialog to save as PDF.` });
+    toast({ variant: "success", title: "PDF Ready", description: `${invoice.id}.pdf — use the print dialog to save as PDF.` });
   };
 
   return (

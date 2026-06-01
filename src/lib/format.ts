@@ -35,9 +35,34 @@ export function getEmailError(email: string): string | null {
 
 export function getPhoneError(phone: string): string | null {
   if (!phone.trim()) return "Phone is required";
-  const digits = phone.replace(/[^0-9]/g, "");
-  if (digits.length < 7) return "Enter a valid phone number";
+  // Normalise: drop spaces/hyphens/parens/dots, then map +44 / 0044 to the
+  // national 0… form. UK numbers in national form start with 0 and are 10–11
+  // digits in total (e.g. 07911 123456, 020 7946 0958).
+  let n = phone.replace(/[\s().-]/g, "");
+  if (n.startsWith("+44")) n = "0" + n.slice(3);
+  else if (n.startsWith("0044")) n = "0" + n.slice(4);
+  if (!/^0\d{9,10}$/.test(n)) return "Enter a valid UK phone number";
   return null;
+}
+
+/** Cap a phone input to the UK maximum digit count for the form being typed
+ *  (national 0… = 11, +44 = 12, 0044 = 14), preserving spaces/“+” formatting.
+ *  Used on input so the field can't exceed a valid UK length. */
+export function clampUkPhone(raw: string): string {
+  const startsPlus = raw.trimStart().startsWith("+");
+  const allDigits = raw.replace(/\D/g, "");
+  const max = startsPlus && allDigits.startsWith("44") ? 12 : allDigits.startsWith("0044") ? 14 : 11;
+  if (allDigits.length <= max) return raw;
+  let count = 0;
+  let out = "";
+  for (const ch of raw) {
+    if (/\d/.test(ch)) {
+      if (count >= max) break;
+      count++;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 export function getPostcodeError(postcode: string): string | null {
@@ -47,6 +72,14 @@ export function getPostcodeError(postcode: string): string | null {
     return "Enter a valid UK postcode";
   }
   return null;
+}
+
+/** Canonical UK postcode form: uppercase, single space before the 3-char inward
+ *  code (e.g. "sw1a1aa" → "SW1A 1AA"). Returns the trimmed/uppercased input
+ *  unchanged if it's too short to split. */
+export function formatUkPostcode(postcode: string): string {
+  const s = postcode.replace(/\s+/g, "").toUpperCase();
+  return s.length >= 5 ? `${s.slice(0, -3)} ${s.slice(-3)}` : s;
 }
 
 export function relativeTime(d: string | Date): string {

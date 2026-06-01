@@ -246,7 +246,7 @@ export default function Messages() {
     );
     setEditingMsg(null);
     setEditText("");
-    toast({ title: "Message edited" });
+    toast({ variant: "success", title: "Message edited" });
   };
 
   const handleDelete = (msg: Message) => {
@@ -273,6 +273,7 @@ export default function Messages() {
     setMessages((prev) => [...prev, forwarded]);
     const targetConv = conversations.find((c) => c.id === targetConvId);
     toast({
+      variant: "success",
       title: "Message Forwarded",
       description: `Sent to ${targetConv ? getConvName(targetConv) : "conversation"}`,
     });
@@ -312,7 +313,7 @@ export default function Messages() {
     };
     setConversations((prev) => [...prev, newGroup]);
     setActiveId(newGroup.id);
-    toast({ title: "Group created", description: `#${name}` });
+    toast({ variant: "success", title: "Group created", description: `#${name}` });
   };
 
   const handleAddMember = (uid: string) => {

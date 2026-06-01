@@ -71,6 +71,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
     if (transferMode === "agent") {
       if (!transferTargetAgent) return;
       toast({
+        variant: "success",
         title: "Ticket Transferred",
         description: `${ticket.id} moved from ${ticket.assignee} to ${transferTargetAgent}.`,
       });
@@ -79,6 +80,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
       const team = assignmentTeams.find((t) => t.name === transferTargetTeam);
       const members = team?.members.filter((m) => m !== ticket.assignee) || [];
       toast({
+        variant: "success",
         title: "Ticket Distributed",
         description: `${ticket.id} assigned to ${transferTargetTeam} (${members.length} members).`,
       });
@@ -194,7 +196,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
               <Button
                 size="sm"
                 className="h-6 text-[10px]"
-                onClick={() => toast({ title: "AI suggestion accepted" })}
+                onClick={() => toast({ variant: "success", title: "AI suggestion accepted" })}
               >
                 Accept
               </Button>
@@ -250,7 +252,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
                 size="sm"
                 variant="outline"
                 className="h-6 text-[10px]"
-                onClick={() => toast({ title: "Approval Requested" })}
+                onClick={() => toast({ variant: "success", title: "Approval Requested" })}
               >
                 Request Approval
               </Button>

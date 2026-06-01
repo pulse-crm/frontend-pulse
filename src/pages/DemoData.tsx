@@ -100,6 +100,7 @@ export default function DemoData() {
       const empty = data.emptyTables.length;
       if (fixes === 0 && empty === 0) {
         toast({
+          variant: "success",
           title: "Integrity Check Passed",
           description: `All ${Object.keys(data.tableCounts).length} tables are healthy.`,
         });
@@ -131,6 +132,7 @@ export default function DemoData() {
     setTimeout(() => {
       setBaselineInfo({ saved_at: new Date().toISOString(), label: baselineLabel });
       toast({
+        variant: "success",
         title: "Baseline Saved",
         description: `Saved ${labels} as the new restore baseline.`,
       });
@@ -333,6 +335,7 @@ export default function DemoData() {
                   setTimeout(() => {
                     setSelectedGroups([]);
                     toast({
+                      variant: "success",
                       title: "Demo Data Restored",
                       description: `All data has been reset from ${source}.`,
                     });
@@ -367,6 +370,7 @@ export default function DemoData() {
                   setSeedPending(true);
                   setTimeout(() => {
                     toast({
+                      variant: "success",
                       title: "Selected Data Restored",
                       description: `Restored: ${labels}`,
                     });
@@ -399,6 +403,7 @@ export default function DemoData() {
                     setTimeout(() => {
                       setSelectedGroups([]);
                       toast({
+                        variant: "success",
                         title: "Factory Reset Complete",
                         description: "All data restored to original defaults.",
                       });

@@ -64,9 +64,12 @@ interface RetentionUpsellPanelProps {
   subscriptions: Subscription[];
   /** The CAM contract to renew (live customers); null for demo/fallback. */
   renewableContract?: RenewableContract | null;
+  /** Re-fetch the customer aggregate after a CAM write so panels (e.g. Active
+   *  Services) reflect the change — discounts/renewals only show after reload. */
+  onMutated?: () => void;
 }
 
-export function RetentionUpsellPanel({ customer, subscriptions, renewableContract }: RetentionUpsellPanelProps) {
+export function RetentionUpsellPanel({ customer, subscriptions, renewableContract, onMutated }: RetentionUpsellPanelProps) {
   const [appliedOffer, setAppliedOffer] = React.useState<string | null>(null);
   const [renewing, setRenewing] = React.useState(false);
   const [applyingOffer, setApplyingOffer] = React.useState<string | null>(null);
@@ -89,6 +92,7 @@ export function RetentionUpsellPanel({ customer, subscriptions, renewableContrac
           description: `${offer.name} applied to ${renewableContract.productName}. Billing will reflect it.`,
           variant: "success",
         });
+        onMutated?.(); // refresh so Active Services shows the discounted charge
       } catch (err) {
         toast({ title: "Could not apply discount", description: friendlyMessage(err), variant: "destructive" });
       } finally {
@@ -97,13 +101,13 @@ export function RetentionUpsellPanel({ customer, subscriptions, renewableContrac
       return;
     }
     setAppliedOffer(offer.id);
-    toast({ title: "Offer applied", description: `${offer.name} applied to ${customer.name}.` });
+    toast({ variant: "success", title: "Offer applied", description: `${offer.name} applied to ${customer.name}.` });
   };
 
   const handleRenew = async () => {
     // No live contract (demo / fallback) → keep the simulated action.
     if (!renewableContract) {
-      toast({ title: "Renewal initiated", description: `Contract renewal started for ${customer.name}.` });
+      toast({ variant: "success", title: "Renewal initiated", description: `Contract renewal started for ${customer.name}.` });
       return;
     }
     setRenewing(true);
@@ -118,6 +122,7 @@ export function RetentionUpsellPanel({ customer, subscriptions, renewableContrac
         description: `${renewableContract.productName} renewed for ${renewableContract.termMonths} months (new contract ${res.successorContractId.slice(0, 8)}).`,
         variant: "success",
       });
+      onMutated?.(); // refresh so the renewed contract state is reflected
     } catch (err) {
       toast({ title: "Could not renew contract", description: friendlyMessage(err), variant: "destructive" });
     } finally {
@@ -152,6 +157,7 @@ export function RetentionUpsellPanel({ customer, subscriptions, renewableContrac
           ? contactAddress
           : contactPhone;
     toast({
+      variant: "success",
       title: "Quote Sent",
       description: `${quoteProduct.name} quote sent to ${customer.name} via ${channelLabel} (${destination}).`,
     });

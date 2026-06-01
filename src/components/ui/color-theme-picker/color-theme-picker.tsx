@@ -47,7 +47,7 @@ export function ColorThemePicker({
     }
     if (usingThemeHook) {
       setHookActive(swatch.id as ColorTheme);
-      if (!silent) toast({ title: "Theme applied", description: `Switched to ${swatch.name}.` });
+      if (!silent) toast({ variant: "success", title: "Theme applied", description: `Switched to ${swatch.name}.` });
     }
   };
 

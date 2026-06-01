@@ -45,7 +45,7 @@ export interface CustomerDetail {
     contractId: string; contractRef: string; productName: string; productCategory: string; status: string;
     monthlyRecurringCharge: number; currency: string; startDate: string; endDate: string | null; termMonths: number;
     catalogueVersionId: string;
-    discounts: Array<{ discountType: string; value: number; durationMonths: number | null }>;
+    discounts: Array<{ discountType: string; value: number; durationMonths: number | null; reason: string }>;
   }>;
   subscriptions: Array<{
     externalSubscriptionId: string; productLabel: string; statusLabel: string;
@@ -67,6 +67,10 @@ export interface CustomerDetail {
       statusLabel: string; summary: string | null;
     }>;
   } | null;
+  /** CAM-derived customer value (0–100) + tier, computed by Customer 360 from
+   *  CAM-owned signals (spend / tenure / billing health / active services). */
+  valueScore: number;
+  valueTier: string;
   partial: boolean;
 }
 
@@ -110,6 +114,20 @@ export function detailToCustomer(d: CustomerDetail): Customer {
   };
 }
 
+/** Collapse identical active discounts (e.g. the same offer applied twice) so
+ *  they neither duplicate in the UI nor double-count in pricing. */
+function dedupeDiscounts<T extends { discountType: string; value: number; durationMonths: number | null; reason?: string }>(
+  list: T[],
+): T[] {
+  const seen = new Set<string>();
+  return list.filter((d) => {
+    const key = `${d.discountType}|${d.value}|${d.durationMonths ?? ""}|${d.reason ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Apply active discounts to a base monthly charge (percentage then fixed). */
 export function effectiveMonthly(
   base: number,
@@ -130,7 +148,7 @@ export function detailToSubscriptions(d: CustomerDetail): Subscription[] {
     product: c.discounts.length > 0 ? `${c.productName} (discount applied)` : c.productName,
     startDate: c.startDate,
     renewalDate: c.endDate ?? c.startDate,
-    monthly: effectiveMonthly(c.monthlyRecurringCharge, c.discounts),
+    monthly: effectiveMonthly(c.monthlyRecurringCharge, dedupeDiscounts(c.discounts)),
     status: CONTRACT_TO_SUB_STATUS[c.status] ?? "Active",
   }));
   const fromSubs: Subscription[] = d.subscriptions.map((s) => ({
@@ -161,6 +179,33 @@ export function detailToInvoices(d: CustomerDetail): Invoice[] {
     issueDate: inv.invoicedAt.slice(0, 10),
     dueDate: inv.invoicedAt.slice(0, 10),
   }));
+}
+
+/** A discount row for the Billing panel's "Discounts & Promotions" table. */
+export interface DiscountRow {
+  id: string;
+  code: string;
+  type: "Percentage" | "Fixed";
+  value: number;
+  status: "Active" | "Expired";
+  period: string;
+  appliesTo: string;
+}
+
+/** Active CAM contract discounts (C9) as Billing-panel rows. The reason carries
+ *  the offer name; period is the discount duration; appliesTo is the product. */
+export function detailToDiscounts(d: CustomerDetail): DiscountRow[] {
+  return d.contracts.flatMap((c) =>
+    dedupeDiscounts(c.discounts).map((dis, i) => ({
+      id: `${c.contractId}-${i}`,
+      code: dis.reason?.trim() || (dis.discountType === "PERCENTAGE" ? `${dis.value}% discount` : "Account credit"),
+      type: dis.discountType === "PERCENTAGE" ? "Percentage" : "Fixed",
+      value: dis.value,
+      status: "Active" as const,
+      period: dis.durationMonths ? `${dis.durationMonths} months` : "One-time",
+      appliesTo: c.productName,
+    })),
+  );
 }
 
 /** Outstanding balance from the billing read-cache (0 if in credit / no billing). */
@@ -231,4 +276,32 @@ export async function applyServiceDiscount(
   return apiClient.post<{ discountId: string }>(endpoints.contractDiscount(contractId), {
     body: input,
   });
+}
+
+// ---- Save an internal note against the account (C1) -------------------------
+
+export interface SaveAccountNoteInput {
+  body: string;
+  category?: string;
+  visibility?: string;
+  pinned?: boolean;
+}
+
+export async function saveAccountNote(
+  accountId: string,
+  input: SaveAccountNoteInput,
+): Promise<{ noteId: string }> {
+  return apiClient.post<{ noteId: string }>(endpoints.accountNote(accountId), { body: input });
+}
+
+export async function setAccountNotePinned(
+  accountId: string,
+  noteId: string,
+  pinned: boolean,
+): Promise<void> {
+  await apiClient.patch(endpoints.accountNoteById(accountId, noteId), { body: { pinned } });
+}
+
+export async function deleteAccountNote(accountId: string, noteId: string): Promise<void> {
+  await apiClient.del(endpoints.accountNoteById(accountId, noteId));
 }

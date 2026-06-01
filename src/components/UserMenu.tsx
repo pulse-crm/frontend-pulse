@@ -90,7 +90,7 @@ function defaultItems(navigate: (path: string) => void): UserMenuItem[] {
       separatorBefore: true,
       onSelect: (close) => {
         close();
-        toast({ title: "Signed out", description: "You have been signed out of PulseGS." });
+        toast({ variant: "success", title: "Signed out", description: "You have been signed out of PulseGS." });
       },
     },
   ];

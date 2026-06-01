@@ -317,7 +317,7 @@ export default function Announcements() {
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === editingId ? { ...a, ...data } : a))
       );
-      toast({ title: "Updated", description: "Announcement updated successfully." });
+      toast({ variant: "success", title: "Updated", description: "Announcement updated successfully." });
     } else {
       const newItem: Announcement = {
         id: `AN-${Date.now().toString().slice(-6)}`,
@@ -325,14 +325,14 @@ export default function Announcements() {
         ...data,
       };
       setAnnouncements((prev) => [newItem, ...prev]);
-      toast({ title: "Created", description: "Announcement created successfully." });
+      toast({ variant: "success", title: "Created", description: "Announcement created successfully." });
     }
     setDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
-    toast({ title: "Deleted", description: "Announcement removed." });
+    toast({ variant: "success", title: "Deleted", description: "Announcement removed." });
   };
 
   const sorted = [...announcements].sort(

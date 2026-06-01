@@ -664,7 +664,7 @@ function AgentWorkloadSection({ workload }: { workload: AgentWorkloadRow[] | nul
 
   const applyStatusChange = (name: string, newStatus: Availability) => {
     setAgents((prev) => prev.map((a) => (a.name === name ? { ...a, availability: newStatus } : a)));
-    toast({ title: "Status Updated", description: `${name} is now ${newStatus}.` });
+    toast({ variant: "success", title: "Status Updated", description: `${name} is now ${newStatus}.` });
   };
 
   const handleStatusChange = (name: string, newStatus: Availability) => {
@@ -691,6 +691,7 @@ function AgentWorkloadSection({ workload }: { workload: AgentWorkloadRow[] | nul
     if (reassignMode === "agent") {
       if (!targetAgent) return;
       toast({
+        variant: "success",
         title: "Tickets Reassigned & Status Updated",
         description: `${openCount} open ticket(s) moved from ${agent} to ${targetAgent}. ${agent} is now ${newStatus}.`,
       });
@@ -701,6 +702,7 @@ function AgentWorkloadSection({ workload }: { workload: AgentWorkloadRow[] | nul
       const perMember = Math.floor(openCount / memberCount);
       const remainder = openCount % memberCount;
       toast({
+        variant: "success",
         title: "Tickets Distributed & Status Updated",
         description: `${openCount} ticket(s) evenly distributed across ${memberCount} members of ${targetTeam} (~${perMember}${remainder > 0 ? `-${perMember + 1}` : ""} each). ${agent} is now ${newStatus}.`,
       });
@@ -716,7 +718,7 @@ function AgentWorkloadSection({ workload }: { workload: AgentWorkloadRow[] | nul
 
   const handleReassign = () => {
     if (!reassignFrom || !reassignTo || reassignFrom === reassignTo) return;
-    toast({ title: "Tickets reassigned", description: `1 ticket moved from ${reassignFrom} to ${reassignTo}.` });
+    toast({ variant: "success", title: "Tickets reassigned", description: `1 ticket moved from ${reassignFrom} to ${reassignTo}.` });
     setReassignFrom("");
     setReassignTo("");
   };

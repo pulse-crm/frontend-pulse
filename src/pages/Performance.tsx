@@ -123,7 +123,7 @@ function ExportButtons({
     a.download = `${filename}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Exported", description: `${filename}.csv downloaded.` });
+    toast({ variant: "success", title: "Exported", description: `${filename}.csv downloaded.` });
   };
 
   const handlePrint = () => {

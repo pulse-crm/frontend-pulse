@@ -251,7 +251,7 @@ export default function UserManagement() {
             : u
         )
       );
-      toast({ title: "User Updated", description: `${formName} has been updated.` });
+      toast({ variant: "success", title: "User Updated", description: `${formName} has been updated.` });
     } else {
       const newId = `U${String(Date.now()).slice(-3)}`;
       const newUser: AppUser = {
@@ -267,7 +267,7 @@ export default function UserManagement() {
         isAi: formIsAi,
       };
       setUsers((prev) => [...prev, newUser]);
-      toast({ title: "User Created", description: `${formName} has been added as ${formRole}.` });
+      toast({ variant: "success", title: "User Created", description: `${formName} has been added as ${formRole}.` });
     }
     setDialogOpen(false);
   };
@@ -715,7 +715,7 @@ function PermissionsEditor({
   };
 
   const handleSave = () => {
-    toast({ title: "Permissions Saved", description: "Permissions for all roles updated." });
+    toast({ variant: "success", title: "Permissions Saved", description: "Permissions for all roles updated." });
     onOpenChange(false);
   };
 

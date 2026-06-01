@@ -1,6 +1,12 @@
 import * as React from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card/card";
+import { cn } from "@/lib/cn";
+
+/** Uniform card height when open — every panel is the same fixed size and its
+ *  body scrolls internally if the content is taller. A closed panel collapses
+ *  to just its header, independently of any neighbouring card. */
+const OPEN_HEIGHT = "h-80";
 
 interface CollapsiblePanelProps {
   title: string;
@@ -21,9 +27,9 @@ export function CollapsiblePanel({
 }: CollapsiblePanelProps) {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
-    <Card className="h-full flex flex-col">
+    <Card className={cn("flex flex-col", open && OPEN_HEIGHT)}>
       <CardHeader
-        className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+        className="p-3 cursor-pointer hover:bg-accent/50 transition-colors shrink-0"
         onClick={() => setOpen(!open)}
       >
         <div className="flex items-center justify-between">
@@ -44,7 +50,7 @@ export function CollapsiblePanel({
           </div>
         </div>
       </CardHeader>
-      {open && <CardContent className="p-0">{children}</CardContent>}
+      {open && <CardContent className="p-0 flex-1 min-h-0 overflow-y-auto">{children}</CardContent>}
     </Card>
   );
 }

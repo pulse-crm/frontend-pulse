@@ -113,6 +113,27 @@ interface LocalDiscount {
   status?: "Active" | "Ended";
 }
 
+/** Effective monthly charge after the service's *active* discounts (ended ones
+ *  excluded, so ending a discount restores the original amount). Percentages
+ *  apply to the base charge; fixed amounts subtract. */
+function discountedMonthly(
+  base: number,
+  synthetic: ServiceDiscount[],
+  endedSyntheticIds: Set<string>,
+  local: LocalDiscount[],
+): number {
+  let m = base;
+  for (const d of synthetic) {
+    if (d.status === "Expired" || endedSyntheticIds.has(d.id)) continue;
+    m -= d.kind === "Percentage" ? (base * d.amount) / 100 : d.amount;
+  }
+  for (const ld of local) {
+    if (ld.status === "Ended") continue;
+    m -= ld.type === "percentage" ? (base * ld.amount) / 100 : ld.amount;
+  }
+  return Math.max(0, Math.round(m * 100) / 100);
+}
+
 export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [localDiscounts, setLocalDiscounts] = React.useState<Record<string, LocalDiscount[]>>({});
@@ -201,6 +222,7 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
       ],
     }));
     toast({
+      variant: "success",
       title: "Discount Added",
       description: `${discountName} (${
         discountType === "percentage" ? `${parsedVal}%` : formatCurrency(parsedVal)
@@ -222,6 +244,7 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
       setEndedSynthetic((prev) => new Set(prev).add(deleteConfirm.key));
     }
     toast({
+      variant: "success",
       title: "Discount ended",
       description: `"${deleteConfirm.name}" status changed to Ended.`,
     });
@@ -254,6 +277,8 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
             const isOpen = expanded.has(s.id);
             const synthetic = discountsFor(s);
             const svcLocal = localDiscounts[s.id] || [];
+            const eff = discountedMonthly(s.monthly, synthetic, endedSynthetic, svcLocal);
+            const isDiscounted = eff < s.monthly;
             return (
               <React.Fragment key={s.id}>
                 <TableRow
@@ -277,7 +302,14 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
                   <TableCell className="text-xs py-2">{commitmentTerm(s)}</TableCell>
                   <TableCell className="text-xs py-2">{formatDate(s.renewalDate)}</TableCell>
                   <TableCell className="text-xs py-2 text-right font-mono">
-                    £{s.monthly.toFixed(2)}
+                    {isDiscounted ? (
+                      <span className="inline-flex items-baseline gap-1.5 justify-end">
+                        <span className="text-muted-foreground line-through">£{s.monthly.toFixed(2)}</span>
+                        <span className="text-success font-medium">£{eff.toFixed(2)}</span>
+                      </span>
+                    ) : (
+                      <>£{s.monthly.toFixed(2)}</>
+                    )}
                   </TableCell>
                 </TableRow>
 
@@ -395,71 +427,69 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
                     {addingFor === s.id ? (
                       <TableRow className="bg-accent/20">
                         <TableCell colSpan={7} className="py-3">
-                          <div className="space-y-3 px-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-3 px-3" onClick={(e) => e.stopPropagation()}>
                             <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                               <Plus className="h-3.5 w-3.5 text-primary" /> Add Discount for{" "}
                               {s.product}
                             </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div>
+                            <div className="flex flex-wrap items-start gap-3">
+                              <div className="w-36">
                                 <label className="text-xs text-muted-foreground mb-1 block">
                                   Discount Name
                                 </label>
                                 <Input
-                                  placeholder="e.g. Loyalty discount"
+                                  placeholder="e.g. Loyalty"
                                   value={discountName}
                                   onChange={(e) => setDiscountName(e.target.value)}
                                   className="h-8 text-xs"
                                 />
                               </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-xs text-muted-foreground mb-1 block">
-                                    Discount Amount (£)
-                                  </label>
-                                  <Input
-                                    type="number"
-                                    placeholder="0.00"
-                                    value={discountAmount}
-                                    onChange={(e) => {
-                                      setDiscountAmount(e.target.value);
-                                      setDiscountPercent("");
-                                    }}
-                                    className="h-8 text-xs"
-                                    min="0"
-                                    max={String(s.monthly)}
-                                    step="0.01"
-                                  />
-                                  <p className="text-[10px] text-muted-foreground mt-1">
-                                    Max: {formatCurrency(s.monthly)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <label className="text-xs text-muted-foreground mb-1 block">
-                                    Discount %
-                                  </label>
-                                  <Input
-                                    type="number"
-                                    placeholder="0"
-                                    value={discountPercent}
-                                    onChange={(e) => {
-                                      setDiscountPercent(e.target.value);
-                                      setDiscountAmount("");
-                                    }}
-                                    className="h-8 text-xs"
-                                    min="0"
-                                    max="100"
-                                    step="1"
-                                  />
-                                  <p className="text-[10px] text-muted-foreground mt-1">Max: 100%</p>
-                                </div>
+                              <div className="w-28">
+                                <label className="text-xs text-muted-foreground mb-1 block whitespace-nowrap">
+                                  Amount (£)
+                                </label>
+                                <Input
+                                  type="number"
+                                  placeholder="0.00"
+                                  value={discountAmount}
+                                  onChange={(e) => {
+                                    setDiscountAmount(e.target.value);
+                                    setDiscountPercent("");
+                                  }}
+                                  className="h-8 text-xs"
+                                  min="0"
+                                  max={String(s.monthly)}
+                                  step="0.01"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  Max: {formatCurrency(s.monthly)}
+                                </p>
+                              </div>
+                              <div className="w-24">
+                                <label className="text-xs text-muted-foreground mb-1 block whitespace-nowrap">
+                                  Discount %
+                                </label>
+                                <Input
+                                  type="number"
+                                  placeholder="0"
+                                  value={discountPercent}
+                                  onChange={(e) => {
+                                    setDiscountPercent(e.target.value);
+                                    setDiscountAmount("");
+                                  }}
+                                  className="h-8 text-xs"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">Max: 100%</p>
                               </div>
                               <div>
                                 <label className="text-xs text-muted-foreground mb-1 block">
                                   Duration
                                 </label>
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3 h-8">
+                                  <div className="flex items-center gap-2 shrink-0">
                                     <Checkbox
                                       checked={discountLinked}
                                       onCheckedChange={(v) => {
@@ -468,7 +498,7 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
                                       }}
                                     />
                                     <label
-                                      className="text-xs text-muted-foreground cursor-pointer"
+                                      className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
                                       onClick={() => {
                                         const v = !discountLinked;
                                         setDiscountLinked(v);
@@ -487,14 +517,12 @@ export function SubscriptionsPanel({ data }: { data: Subscription[] }) {
                                         <Button
                                           variant="outline"
                                           className={cn(
-                                            "h-8 w-full justify-start text-left text-xs font-normal",
+                                            "h-8 w-36 justify-center text-xs font-normal",
                                             !discountEndDate && "text-muted-foreground"
                                           )}
                                         >
                                           <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                                          {discountEndDate
-                                            ? dateLabel(discountEndDate)
-                                            : "Pick end date"}
+                                          {discountEndDate ? dateLabel(discountEndDate) : "Pick end date"}
                                         </Button>
                                       }
                                     >
